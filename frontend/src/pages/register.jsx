@@ -47,7 +47,7 @@ function Register() {
 
             <button className="registerButton">Registriraj se</button>
           </form>
-          <GoogleLoginButton/>
+          <GoogleLoginButton role={userType} />
           <div style={{ marginTop: "15px" }}>
             <button onClick={() => setUserType(null)} className="backToUserChoiceButton">
               Nazad na izbor tipa
