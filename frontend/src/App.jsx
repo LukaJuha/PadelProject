@@ -1,14 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import Home from "./pages/Home.jsx";
-import Register from "./pages/Register.jsx";
-import Login from "./pages/Login.jsx";
+import Home from "./pages/home.jsx";
+import Register from "./pages/register.jsx";
+import Login from "./pages/login.jsx";
 
 function App() {
   return (
     <Router>
       <nav style={styles.navbar}>
         <div style={styles.logo}>
-          <Link to="/" style={styles.logoLink}>🎾 PadelZone</Link>
+          <Link to="/" style={styles.logoLink}>ServeIt</Link>
         </div>
 
         <div style={styles.navRight}>
@@ -66,7 +66,7 @@ const styles = {
     transition: "background-color 0.2s",
   },
   main: {
-    paddingTop: "100px", // da sadržaj ne ide ispod navbar-a
+    paddingTop: "100px",
     textAlign: "center",
   },
 };

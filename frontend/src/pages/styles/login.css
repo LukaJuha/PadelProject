@@ -1,0 +1,28 @@
+.loginOkvir {
+    text-align: center;
+    margin-top: 50px;
+
+}
+
+.loginForm {
+    display: inline-block;
+    text-align: left;
+}
+
+.loginInput {
+    display: block;
+    width: 250px;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.loginButton {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+};

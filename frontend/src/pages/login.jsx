@@ -1,34 +1,25 @@
+import "./styles/login.css";
+import GoogleLoginButton from "../components/googleOAuthButton";
+
 function Login() {
   return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
+    <div className="loginOkvir">
       <h2>Prijava</h2>
-      <form style={{ display: "inline-block", textAlign: "left" }}>
+      <form className="loginForm">
+
         <label>Email:</label>
-        <input type="email" required style={inputStyle} />
+        <input type="email" required className="loginInput"/>
+
         <label>Šifra:</label>
-        <input type="password" required style={inputStyle} />
-        <button style={buttonStyle}>Uloguj se</button>
+        <input type="password" required className="loginInput"/>
+
+        <button className="loginButton">Ulogiraj se</button>
+        <GoogleLoginButton/>
       </form>
+      
     </div>
   );
 }
 
-const inputStyle = {
-  display: "block",
-  width: "250px",
-  padding: "8px",
-  marginBottom: "10px",
-  borderRadius: "6px",
-  border: "1px solid #ccc",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "10px",
-  backgroundColor: "#007bff",
-  color: "white",
-  border: "none",
-  borderRadius: "6px",
-};
 
 export default Login;
