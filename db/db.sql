@@ -1,11 +1,17 @@
+-- DEPRECATED: Use Django ORM migrations instead.
+
 CREATE TABLE Profile (
 	id SERIAL PRIMARY KEY,
 	username VARCHAR(30) UNIQUE NOT NULL,
-	passwordHash VARCHAR(255),
+	password VARCHAR(255),
 	email VARCHAR(255) UNIQUE NOT NULL,
 	role VARCHAR(20) CHECK (role IN ('PLAYER', 'CLUB', 'ADMIN')) NOT NULL,
 	createdAt TIMESTAMP DEFAULT NOW(),
-	updatedAt TIMESTAMP DEFAULT NOW()
+	updatedAt TIMESTAMP DEFAULT NOW(),
+	last_login TIMESTAMP,
+	is_superuser BOOLEAN DEFAULT FALSE,
+	is_active BOOLEAN DEFAULT TRUE,
+	is_staff BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE Player (

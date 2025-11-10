@@ -1,0 +1,57 @@
+### register
+POST http://localhost:8000/api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "test12111@1example.com",
+  "password": "StrongPass12321",
+  "username": "testuser1211",
+  "role": "PLAYER"
+}
+
+### login
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+    "email": "test12111@1example.com",
+    "password": "StrongPass123"
+}
+
+### protected endpoint example
+GET http://localhost:8000/api/some-protected-endpoint/
+Authorization: Token your_token_here
+Content-Type: application/json
+
+### logout
+POST http://localhost:8000/api/auth/logout/
+Content-Type: application/json
+
+{
+  "refresh": "PASTE_REFRESH_TOKEN_HERE"
+}
+
+### refresh token
+POST http://localhost:8000/api/auth/refresh/
+Content-Type: application/json
+
+{
+  "refresh": "PASTE_REFRESH_TOKEN_HERE"
+}
+
+
+### get current user
+GET http://localhost:8000/api/auth/user/
+Authorization: Bearer "PASTE_ACCESS_TOKEN_HERE"
+Content-Type: application/json
+
+
+### change password
+POST http://localhost:8000/api/auth/password/change/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYyODE4NDI4LCJpYXQiOjE3NjI4MTQ4MjgsImp0aSI6IjEyY2QwMWFhNDBmNTQ1MDE4NjllNWVjZTFmZDRiZDAyIiwidXNlcl9pZCI6IjYifQ.qcfAN0_EVrDsUJHZR2F4ks21rz7bGYjXNClKYgVT4cQ
+Content-Type: application/json
+
+{
+  "old_password": "StrongPass12321",
+  "new_password": "StrongPass123"
+}
