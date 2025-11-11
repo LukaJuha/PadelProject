@@ -1,32 +1,110 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 import Home from "./pages/home.jsx";
 import Register from "./pages/register.jsx";
 import Login from "./pages/login.jsx";
+import Profile from "./pages/profile.jsx";
+import { UserProvider } from "./user-context.jsx";
+import { useContext } from "react";
+import UserContext from "./user-context.jsx";
+import { useNavigate } from "react-router-dom";
+import ProtectedRoute from "./components/protectedRoute.jsx";
 
 function App() {
   return (
-    <Router>
-      <nav style={styles.navbar}>
-        <div style={styles.logo}>
-          <Link to="/" style={styles.logoLink}>ServeIt</Link>
-        </div>
+    <UserProvider>
+      <Router>
+        <nav style={styles.navbar}>
+          <AppContent />
+        </nav>
+        <main style={styles.main}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </main>
+      </Router>
+    </UserProvider>
+  );
+}
 
-        <div style={styles.navRight}>
-          <Link to="/login" style={styles.navButton}>Login</Link>
-          <Link to="/register" style={{ ...styles.navButton, backgroundColor: "#007bff" }}>
-            Sign Up
-          </Link>
-        </div>
-      </nav>
+function AppContent() {  
+  const [user, setUser] = useContext(UserContext);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-      <main style={styles.main}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-        </Routes>
-      </main>
-    </Router>
+  const hideNavbarButtons = location.pathname === "/register" || location.pathname === "/login";
+
+  const logout = async () => {
+    try {
+      const userData = {
+        refresh: user.refreshToken,
+      };
+
+      const res = await fetch("http://localhost:8000/api/auth/logout/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (res.status === 205) {
+        setUser(null);
+        navigate("/");
+      } else if (res.ok) {
+        const data = await res.json();
+        setUser(null);
+        navigate("/");
+      } else {
+        let data = {};
+        try {
+          data = await res.json();
+        } catch {}
+        alert(data.error || "Greška prilikom odjave");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  return (
+    <>
+      <div style={styles.logo}>
+        <Link to="/" style={styles.logoLink}>ServeIt</Link>
+      </div>
+
+          {!hideNavbarButtons && (
+          <>
+          {!user?.authenticated && (
+          <div style={styles.navRight}>
+            <Link to="/login" style={styles.navButton}>Prijava</Link>
+            <Link to="/register" style={{ ...styles.navButton, backgroundColor: "#007bff", color: "white" }}>
+              Registracija
+            </Link>
+          </div>
+          )}
+
+          {user?.authenticated && (
+          <div style={styles.navRight}>
+            <Link to="/profile" style={styles.navButton}>Profil</Link>
+            <button style={{ ...styles.navButton, backgroundColor: "#dc3545", color: "white" }} 
+            onClick={logout}>
+              Odjava
+            </button>
+          </div> 
+          )}
+          </>
+        )}
+      </>
   );
 }
 

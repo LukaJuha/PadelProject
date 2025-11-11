@@ -33,11 +33,20 @@ Timovima olakšava administrativne poslove te povećava njihovu popunjenost.
    pip install -r requirements.txt
    ```
 3. **U Postgresu dodaj korisnika i bazu podataka**
+   - NAPOMENA: ovo se može ostvariti ili kroz grafičko sučelje ili koristeći *psql* koji se nalazi u istom direktoriju kao *pgadmin*
    ```sql
    CREATE USER progiuser WITH PASSWORD 'progi';
    CREATE DATABASE progidb OWNER progiuser;
    ```
-4. **Konfiguriraj bazu podataka u `backend/settings.py`**
+4. **U Postgresu dodaj privilegije novom korisniku**
+   - NAPOMENA: ovo se može ostvariti ili kroz grafičko sučelje ili koristeći *psql* koji se nalazi u istom direktoriju kao *pgadmin*
+   ```sql
+   GRANT CONNECT ON DATABASE progidb TO progiuser;
+   GRANT USAGE ON SCHEMA public TO progiuser;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO progiuser;
+   GRANT SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO progiuser;
+   ```
+5. **Konfiguriraj bazu podataka u `backend/settings.py`**
    ```json
    DATABASES = {
        "default": {
@@ -51,12 +60,12 @@ Timovima olakšava administrativne poslove te povećava njihovu popunjenost.
    }
    ```
    - ovaj korak je potreban jedino ako se u koraku 3. korisnik konfigurirao drugačije
-5. **Napravi migracije i pokreni server**
+6. **Napravi migracije i pokreni server**
    ```bash
    python manage.py migrate
    python manage.py runserver
    ```
-6. **Provjeri možeš li pristupiti serveru lokalno**
+7. **Provjeri možeš li pristupiti serveru lokalno**
    <br>
    <http://localhost:8000>
 

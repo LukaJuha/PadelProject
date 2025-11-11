@@ -1,4 +1,5 @@
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
 from rest_framework.response import Response
@@ -40,7 +41,7 @@ def register(request):
         # create user and related object inside a transaction
         with transaction.atomic():
             user = User.objects.create_user(
-                username=email,
+                username=username,
                 password=password,
                 email=email,
                 role=role,
@@ -103,6 +104,35 @@ def login(request):
 
 
 @api_view(['POST'])
+def google_check(request):
+    credential = request.data.get('credential')
+    if not credential:
+        return Response({'error': 'Missing credential'}, status=400)
+
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+
+        email = idinfo.get('email')
+        if not email:
+            return Response({'error': 'Email not found'}, status=400)
+
+        user_exists = User.objects.filter(email=email).exists()
+
+        return Response({
+            'exists': user_exists,
+            'email': email,
+            'name': idinfo.get('name', '')
+        }, status=200)
+
+    except ValueError:
+        return Response({'error': 'Invalid Google credential'}, status=401)
+
+
+@api_view(['POST'])
 def google_auth(request):
     credential = request.data.get('credential')
     role = request.data.get('role', 'PLAYER')
@@ -112,7 +142,7 @@ def google_auth(request):
 
     try:
         # Verify the token with Google
-        idinfo = id_token.verify_oauth2_token(credential, google_requests.Request())
+        idinfo = id_token.verify_oauth2_token(credential, google_requests.Request(), settings.GOOGLE_CLIENT_ID)
 
         email = idinfo.get('email')
         first_name = idinfo.get('given_name', '')
@@ -126,12 +156,30 @@ def google_auth(request):
             email=email,
             username=email,
             defaults={
-                'first_name': first_name,
-                'last_name': last_name,
                 'role': role,
-                'password': User.objects.make_random_password()
+                # 'password': User.objects.make_random_password()
             }
         )
+
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        if role == 'PLAYER':
+            Player.objects.get_or_create(
+                userid=user,
+                defaults={'first_name': first_name, 'last_name': last_name}
+            )
+        elif role == 'CLUB':
+            Club.objects.get_or_create(
+                userid=user,
+                defaults={'name': f"{first_name} {last_name}".strip() or user.username}
+            )
+        elif role == 'ADMIN':
+            Admin.objects.get_or_create(
+                userid=user,
+                defaults={'first_name': first_name, 'last_name': last_name}
+            )
 
         # Issue JWT tokens
         refresh = RefreshToken.for_user(user)
@@ -167,6 +215,11 @@ def current_user(request):
     user = request.user
     role = getattr(user, 'role', None)
     if role == 'PLAYER':
+        try:
+            player = user.player
+        except Player.DoesNotExist:
+            player = None
+
         return Response({
             'email': user.email,
             'username': user.username,
@@ -179,6 +232,11 @@ def current_user(request):
             'role': role,
         }, status=status.HTTP_200_OK)
     elif role == 'CLUB':
+        try:
+            club = user.club
+        except Player.DoesNotExist:
+            club = None
+
         return Response({
             'email': user.email,
             'username': user.username,
@@ -191,6 +249,11 @@ def current_user(request):
             'role': role,
         }, status=status.HTTP_200_OK)
     elif role == 'ADMIN':
+        try:
+            admin = user.admin
+        except Player.DoesNotExist:
+            admin = None
+
         return Response({
             'email': user.email,
             'username': user.username,
@@ -206,6 +269,92 @@ def current_user(request):
             'username': user.username,
             'message': 'Role not recognized',
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user(request):
+    user = request.user
+    role = getattr(user, 'role', None)
+    data = request.data
+
+    try:
+        if role == 'PLAYER':
+            player = user.player
+            player.first_name = data.get('first_name', player.first_name)
+            player.last_name = data.get('last_name', player.last_name)
+            player.phone_number = data.get('phone_number', player.phone_number)
+            player.skill_level = data.get('skill_level', player.skill_level)
+            player.preferred_dow = data.get('preferred_dow', player.preferred_dow)
+            player.preferred_time = data.get('preferred_time', player.preferred_time)
+            player.save()
+
+            user.username = data.get('username', user.username)
+            user.save()
+
+            return Response({
+                'email': user.email,
+                'username': user.username,
+                'first_name': player.first_name,
+                'last_name': player.last_name,
+                'phone_number': player.phone_number,
+                'skill_level': player.skill_level,
+                'preferred_dow': player.preferred_dow,
+                'preferred_time': player.preferred_time,
+                'role': role,
+            }, status=status.HTTP_200_OK)
+
+        elif role == 'CLUB':
+            club = user.club
+            club.name = data.get('name', club.name)
+            club.address = data.get('address', club.address)
+            club.description = data.get('description', club.description)
+            club.working_hours = data.get('working_hours', club.working_hours)
+            club.contact_number = data.get('contact_number', club.contact_number)
+            club.save()
+
+            user.username = data.get('username', user.username)
+            user.save()
+
+            return Response({
+                'email': user.email,
+                'username': user.username,
+                'name': club.name,
+                'address': club.address,
+                'description': club.description,
+                'working_hours': club.working_hours,
+                'contact_number': club.contact_number,
+                'rating_avg': club.rating_avg,
+                'role': role,
+            }, status=status.HTTP_200_OK)
+
+        elif role == 'ADMIN':
+            admin = user.admin
+            admin.first_name = data.get('first_name', admin.first_name)
+            admin.last_name = data.get('last_name', admin.last_name)
+            admin.can_manage_users = data.get('can_manage_users', admin.can_manage_users)
+            admin.can_manage_bookings = data.get('can_manage_bookings', admin.can_manage_bookings)
+            admin.save()
+
+            user.username = data.get('username', user.username)
+            user.save()
+
+            return Response({
+                'email': user.email,
+                'username': user.username,
+                'first_name': admin.first_name,
+                'last_name': admin.last_name,
+                'can_manage_users': admin.can_manage_users,
+                'can_manage_bookings': admin.can_manage_bookings,
+                'role': role,
+            }, status=status.HTTP_200_OK)
+
+        else:
+            return Response({'error': 'Invalid role or user type not recognized.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
