@@ -133,7 +133,7 @@ def google_check(request):
 
 
 @api_view(['POST'])
-def google_auth(request):
+def google_register(request):
     credential = request.data.get('credential')
     role = request.data.get('role', 'PLAYER')
 
@@ -195,6 +195,48 @@ def google_auth(request):
     except ValueError:
         return Response({'error': 'Invalid Google credential'}, status=status.HTTP_401_UNAUTHORIZED)
     
+
+@api_view(['POST'])
+def google_login(request):
+    credential = request.data.get('credential')
+
+    if not credential:
+        return Response({'error': 'Missing credential'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+
+        email = idinfo.get('email')
+        if not email:
+            return Response({'error': 'Email not found in Google token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'error': 'User does not exist, please register first.'}, status=status.HTTP_404_NOT_FOUND)
+
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+
+        return Response({
+            'access': access,
+            'refresh': str(refresh),
+            'user': {
+                'email': user.email,
+                'role': user.role,
+            }
+        }, status=status.HTTP_200_OK)
+
+    except ValueError as e:
+        return Response({'error': f'Invalid token: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        print(f"Google login error: {e}")
+        return Response({'error': 'Unexpected error during Google login'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                         
 
 @api_view(['POST'])
 def logout(request):

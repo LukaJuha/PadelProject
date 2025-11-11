@@ -1,8 +1,11 @@
 import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import UserContext from "../user-context";
 
 export default function GoogleLoginButton({ user, setUser }) {
+  const [globalUser, setGlobalUser] = useContext(UserContext);
   const navigate = useNavigate();
   return (
     <div style={{ marginTop: "20px", display: "flex", justifyContent: "center" }}>
@@ -20,24 +23,24 @@ export default function GoogleLoginButton({ user, setUser }) {
 
           if (checkRes.ok) {
             if (data.exists) {
-              const registerRes = await fetch("http://localhost:8000/api/auth/google/register/", {
+              const loginRes = await fetch("http://localhost:8000/api/auth/google/login/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ credential }),
               });
-              const registerData = await registerRes.json();
+              const loginData = await loginRes.json();
 
-              if (registerRes.ok) {
-                setUser({
-                  accessToken: registerData.access,
-                  refreshToken: registerData.refresh,
-                  email: registerData.user.email,
-                  role: registerData.user.role,
+              if (loginRes.ok) {
+                setGlobalUser({
+                  accessToken: loginData.access,
+                  refreshToken: loginData.refresh,
+                  email: loginData.user.email,
+                  role: loginData.user.role,
                   authenticated: true,
                 });
                 navigate('/');
               } else {
-                alert(registerData.error || "Greška prilikom prijave");
+                alert(loginData.error || "Greška prilikom prijave");
                 setUser(null);
               }
             } else {

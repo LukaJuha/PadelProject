@@ -106,15 +106,17 @@ function Register() {
         const data = await res.json();
 
         if (res.ok) {
-          setUser({
+          const newUser = {
             ...localUser, 
-            username: localUser.credentials.name, 
-            email: localUser.credentials.email, 
-            accessToken: data.access_token, 
-            refreshToken: data.refresh_token,
+            username: localUser.credentials?.name, 
+            email: localUser.credentials?.email, 
+            accessToken: data.access, 
+            refreshToken: data.refresh,
             role: role, 
             authenticated: true
-          });
+          };
+          
+          setUser(newUser);
           navigate("/");
         } else {
           alert(data.error || "Greška prilikom registracije");

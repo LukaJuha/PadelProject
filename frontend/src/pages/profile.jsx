@@ -46,7 +46,6 @@ function Profile() {
                 preferredDay: data.preferred_dow || 1,
                 preferredTime: data.preferred_time || "12:00",
             };
-            console.log('profileData: ', profileData);
 
             setUserData(profileData);
             oldData.current = { ...profileData };
