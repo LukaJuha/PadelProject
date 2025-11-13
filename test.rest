@@ -3,10 +3,10 @@ POST http://localhost:8000/api/auth/register/
 Content-Type: application/json
 
 {
-  "email": "test12111@1example.com",
-  "password": "StrongPass12321",
-  "username": "testuser1211",
-  "role": "PLAYER"
+  "email": "testplaye3r33@example.com",
+  "password": "StrongPass123!",
+  "username": "testplaye3r33",
+  "account_type": "PLAYER"
 }
 
 ### login
@@ -15,7 +15,7 @@ Content-Type: application/json
 
 {
     "email": "test12111@1example.com",
-    "password": "StrongPass123"
+    "password": "StrongPass12321"
 }
 
 ### protected endpoint example
