@@ -20,14 +20,14 @@ def register(request):
         email = request.data.get('email')
         password = request.data.get('password', '')
         username = request.data.get('username')
-        account_type = (request.data.get('account_type') or 'PLAYER').upper()
+        role = (request.data.get('role') or 'PLAYER').upper()
 
         if not all([email, password, username]):
             return Response({'error': 'email, password, username are required'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        if account_type not in ('PLAYER', 'CLUB', 'ADMIN'):
-            return Response({'error': 'invalid account_type'}, status=status.HTTP_400_BAD_REQUEST)
+        if role not in ('PLAYER', 'CLUB', 'ADMIN'):
+            return Response({'error': 'invalid role'}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'},
@@ -49,20 +49,20 @@ def register(request):
                 username=username,
                 password=password,
                 email=email,
-                account_type=account_type,
+                role=role,
             )
 
-            if account_type == 'PLAYER':
+            if role == 'PLAYER':
                 Player.objects.create(
                     userid=user,
                 )
 
-            elif account_type == 'CLUB':
+            elif role == 'CLUB':
                 Club.objects.create(
                     userid=user,
                 )
             
-            elif account_type == 'ADMIN':
+            elif role == 'ADMIN':
                 Admin.objects.create(
                     userid=user,
                 )
@@ -72,7 +72,7 @@ def register(request):
             'message': "User registered successfully",
             'user': {
                 'email': user.email,
-                'account_type': user.account_type
+                'role': user.role
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -99,7 +99,7 @@ def login(request):
             'refresh': str(refresh),
             'user': {
                 'email': user.email,
-                'account_type': user.account_type
+                'role': user.role
             }
         }, status=status.HTTP_200_OK)
     else:
@@ -140,7 +140,7 @@ def google_check(request):
 @api_view(['POST'])
 def google_register(request):
     credential = request.data.get('credential')
-    account_type = request.data.get('account_type', 'PLAYER')
+    role = request.data.get('role', 'PLAYER')
 
     if not credential:
         return Response({'error': 'Missing credential'}, status=status.HTTP_400_BAD_REQUEST)
@@ -161,7 +161,7 @@ def google_register(request):
             email=email,
             username=email,
             defaults={
-                'account_type': account_type,
+                'role': role,
                 # 'password': User.objects.make_random_password()
             }
         )
@@ -170,17 +170,17 @@ def google_register(request):
             user.set_unusable_password()
             user.save()
 
-        if account_type == 'PLAYER':
+        if role == 'PLAYER':
             Player.objects.get_or_create(
                 userid=user,
                 defaults={'first_name': first_name, 'last_name': last_name}
             )
-        elif account_type == 'CLUB':
+        elif role == 'CLUB':
             Club.objects.get_or_create(
                 userid=user,
                 defaults={'name': f"{first_name} {last_name}".strip() or user.username}
             )
-        elif account_type == 'ADMIN':
+        elif role == 'ADMIN':
             Admin.objects.get_or_create(
                 userid=user,
                 defaults={'first_name': first_name, 'last_name': last_name}
@@ -193,7 +193,7 @@ def google_register(request):
             'refresh': str(refresh),
             'user': {
                 'email': user.email,
-                'account_type': user.account_type
+                'role': user.role
             }
         }, status=status.HTTP_200_OK)
 
@@ -232,7 +232,7 @@ def google_login(request):
             'refresh': str(refresh),
             'user': {
                 'email': user.email,
-                'account_type': user.account_type,
+                'role': user.role,
             }
         }, status=status.HTTP_200_OK)
 
@@ -260,8 +260,8 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def current_user(request):
     user = request.user
-    account_type = user.account_type
-    if account_type == 'PLAYER':
+    role = user.role
+    if role == 'PLAYER':
         return Response({
             'email': user.email,
             'username': user.username,
@@ -271,9 +271,9 @@ def current_user(request):
             'skill_level': user.player.skill_level,
             'preferred_dow': user.player.preferred_dow,
             'preferred_time': user.player.preferred_time,
-            'account_type': account_type,
+            'role': role,
         }, status=status.HTTP_200_OK)
-    elif account_type == 'CLUB':
+    elif role == 'CLUB':
         return Response({
             'email': user.email,
             'username': user.username,
@@ -283,9 +283,9 @@ def current_user(request):
             'working_hours': user.club.working_hours,
             'contact_number': user.club.contact_number,
             'rating_avg': user.club.rating_avg,
-            'account_type': account_type,
+            'role': role,
         }, status=status.HTTP_200_OK)
-    elif account_type == 'ADMIN':
+    elif role == 'ADMIN':
         return Response({
             'email': user.email,
             'username': user.username,
@@ -293,7 +293,7 @@ def current_user(request):
             'last_name': user.admin.last_name,
             'can_manage_users': user.admin.can_manage_users,
             'can_manage_bookings': user.admin.can_manage_bookings,
-            'account_type': account_type,
+            'role': role,
         }, status=status.HTTP_200_OK)
     else:
         return Response({
@@ -307,11 +307,11 @@ def current_user(request):
 @permission_classes([IsAuthenticated])
 def update_user(request):
     user = request.user
-    account_type = getattr(user, 'account_type', None)
+    role = getattr(user, 'role', None)
     data = request.data
 
     try:
-        if account_type == 'PLAYER':
+        if role == 'PLAYER':
             player = user.player
             player.first_name = data.get('first_name', player.first_name)
             player.last_name = data.get('last_name', player.last_name)
@@ -333,10 +333,10 @@ def update_user(request):
                 'skill_level': player.skill_level,
                 'preferred_dow': player.preferred_dow,
                 'preferred_time': player.preferred_time,
-                'account_type': account_type,
+                'role': role,
             }, status=status.HTTP_200_OK)
 
-        elif account_type == 'CLUB':
+        elif role == 'CLUB':
             club = user.club
             club.name = data.get('name', club.name)
             club.address = data.get('address', club.address)
@@ -357,10 +357,10 @@ def update_user(request):
                 'working_hours': club.working_hours,
                 'contact_number': club.contact_number,
                 'rating_avg': club.rating_avg,
-                'account_type': account_type,
+                'role': role,
             }, status=status.HTTP_200_OK)
 
-        elif account_type == 'ADMIN':
+        elif role == 'ADMIN':
             admin = user.admin
             admin.first_name = data.get('first_name', admin.first_name)
             admin.last_name = data.get('last_name', admin.last_name)
@@ -378,7 +378,7 @@ def update_user(request):
                 'last_name': admin.last_name,
                 'can_manage_users': admin.can_manage_users,
                 'can_manage_bookings': admin.can_manage_bookings,
-                'account_type': account_type,
+                'role': role,
             }, status=status.HTTP_200_OK)
 
         else:

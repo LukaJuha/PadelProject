@@ -4,7 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, email, username=None, password=None, account_type='PLAYER', **extra_fields):
+    def create_user(self, email, username=None, password=None, role='PLAYER', **extra_fields):
         if not email:
             raise ValueError('Users must have an email address')
         email = self.normalize_email(email)
@@ -13,19 +13,19 @@ class CustomUserManager(BaseUserManager):
         if not username:
             username = email.split('@')[0]
 
-        user = self.model(email=email, username=username, account_type=account_type, **extra_fields)
+        user = self.model(email=email, username=username, role=role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, username=None, password=None, **extra_fields):
-        extra_fields.setdefault('account_type', 'ADMIN')
+        extra_fields.setdefault('role', 'ADMIN')
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, username, password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    ACCOUNT_TYPES = [
+    ROLES = [
         ('PLAYER', 'Player'),
         ('CLUB', 'Club'),
         ('ADMIN', 'Admin'),
@@ -34,7 +34,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=30, unique=True)
     email = models.EmailField(unique=True)
-    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='PLAYER')
+    role = models.CharField(max_length=20, choices=ROLES, default='PLAYER')
 
     # Django still requires these if you use the admin site:
     # is_active = models.BooleanField(default=True)

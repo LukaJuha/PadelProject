@@ -3,10 +3,10 @@ POST http://localhost:8000/api/auth/register/
 Content-Type: application/json
 
 {
-  "email": "testplaye3r33@example.com",
+  "email": "testplayer@example.com",
   "password": "StrongPass123!",
-  "username": "testplaye3r33",
-  "account_type": "PLAYER"
+  "username": "testplayer",
+  "role": "PLAYER"
 }
 
 ### login
@@ -14,8 +14,8 @@ POST http://localhost:8000/api/auth/login/
 Content-Type: application/json
 
 {
-    "email": "test12111@1example.com",
-    "password": "StrongPass12321"
+    "email": "testplayer@example.com",
+    "password": "StrongPass123!"
 }
 
 ### protected endpoint example
@@ -42,16 +42,16 @@ Content-Type: application/json
 
 ### get current user
 GET http://localhost:8000/api/auth/user/
-Authorization: Bearer "PASTE_ACCESS_TOKEN_HERE"
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
 Content-Type: application/json
 
 
 ### change password
 POST http://localhost:8000/api/auth/password/change/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYyODE4NDI4LCJpYXQiOjE3NjI4MTQ4MjgsImp0aSI6IjEyY2QwMWFhNDBmNTQ1MDE4NjllNWVjZTFmZDRiZDAyIiwidXNlcl9pZCI6IjYifQ.qcfAN0_EVrDsUJHZR2F4ks21rz7bGYjXNClKYgVT4cQ
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
 Content-Type: application/json
 
 {
-  "old_password": "StrongPass12321",
-  "new_password": "StrongPass123"
+  "old_password": "StrongPass123!",
+  "new_password": "StrongPass1234!"
 }
