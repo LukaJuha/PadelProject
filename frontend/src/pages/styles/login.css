@@ -1,0 +1,41 @@
+.loginOkvir {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.loginForm {
+    display: inline-block;
+    text-align: left;
+    max-width: 300px;
+}
+
+.loginInput {
+    display: block;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.loginButton {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+};
+
+.loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}

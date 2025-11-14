@@ -1,0 +1,61 @@
+.profileForm {
+    max-width: 700px;
+    text-align: left;
+}
+
+.profileTextInput {
+    display: block;
+}
+
+.profileSelectContainer {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.profileRadioInput {
+    width: 30px;
+}
+
+.profileRadioContainer > label {
+    white-space: nowrap;
+    display:block;
+}
+
+.profileUserContainer, .profilePlayerContainer, .profileClubContainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 30px;
+}
+
+.profileUserContainer > span {
+    flex-grow: 1;
+}
+
+.profilePlayerContainer > span {
+    flex-grow: 1;
+}
+
+.profileClubContainer > span {
+    flex-grow: 1;
+}
+
+.clubTextAreaLabel {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.profileTextArea {
+    width: 100%;
+    height: 120px;
+    resize: none;
+    padding: 8px;
+}
+
+.profileButtonContainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+}

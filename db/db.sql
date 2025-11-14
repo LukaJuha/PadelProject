@@ -1,0 +1,123 @@
+-- DEPRECATED: Use Django ORM migrations instead.
+
+CREATE TABLE Profile (
+	id SERIAL PRIMARY KEY,
+	username VARCHAR(30) UNIQUE NOT NULL,
+	password VARCHAR(255),
+	email VARCHAR(255) UNIQUE NOT NULL,
+	role VARCHAR(20) CHECK (role IN ('PLAYER', 'CLUB', 'ADMIN')) NOT NULL,
+	createdAt TIMESTAMP DEFAULT NOW(),
+	updatedAt TIMESTAMP DEFAULT NOW(),
+	last_login TIMESTAMP,
+	is_superuser BOOLEAN DEFAULT FALSE,
+	is_active BOOLEAN DEFAULT TRUE,
+	is_staff BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE Player (
+    userId INT PRIMARY KEY REFERENCES Profile(id) ON DELETE CASCADE,
+    firstName VARCHAR(40),
+	lastName VARCHAR(40),
+    phoneNumber VARCHAR(20),
+    skillLevel VARCHAR(20) CHECK (skillLevel IN ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'PROFESSIONAL')),
+	preferredDow INT CHECK (preferredDow BETWEEN 1 AND 7),
+	preferredTime TIME
+);
+
+CREATE TABLE Club (
+    userId INT PRIMARY KEY REFERENCES Profile(id) ON DELETE CASCADE,
+    name VARCHAR(100),
+    address VARCHAR(255),
+    description VARCHAR(500),
+    workingHours VARCHAR(100),
+    contactNumber VARCHAR(20),
+    ratingAvg DECIMAL(3, 2) DEFAULT 0.0
+);
+
+CREATE TABLE Admin (
+    userId INT PRIMARY KEY REFERENCES Profile(id) ON DELETE CASCADE,
+    firstName VARCHAR(40),
+	lastName VARCHAR(40),
+    canManageUsers BOOLEAN DEFAULT TRUE,
+    canManageBookings BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE OAuthToken (
+	id SERIAL PRIMARY KEY,
+	userId INT REFERENCES Profile(id) ON DELETE CASCADE,
+	accessToken TEXT NOT NULL,
+	refreshToken TEXT,
+	expiresAt TIMESTAMP
+);
+
+CREATE TABLE Field (
+	id SERIAL PRIMARY KEY,
+	clubId INT REFERENCES Club(userId) ON DELETE CASCADE,
+	name VARCHAR(50) NOT NULL,
+	floorType VARCHAR(20) CHECK (floorType IN ('HARDWOOD', 'GRASS', 'TURF', 'ARTIFICIAL')) NOT NULL,
+	size VARCHAR(20) CHECK (size IN ('SINGLE', 'DOUBLE')) NOT NULL,
+	location VARCHAR(20) CHECK (location IN ('INSIDE', 'OUTSIDE')) NOT NULL,
+	ceilingHeight INT,
+	lighting BOOLEAN NOT NULL
+);
+
+CREATE TABLE ClubImage (
+	id SERIAL PRIMARY KEY,
+	clubId INT REFERENCES Club(userId) ON DELETE CASCADE,
+	imageUrl VARCHAR(255) NOT NULL,
+	uploadedAt TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE FieldImage (
+	id SERIAL PRIMARY KEY,
+	fieldId INT REFERENCES Field(id) ON DELETE CASCADE,
+	imageUrl VARCHAR(255) NOT NULL,
+	uploadedAt TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE Review (
+	id SERIAL PRIMARY KEY,
+	userId INT REFERENCES Player(userId) ON DELETE CASCADE,
+	clubId INT REFERENCES Club(userId) ON DELETE CASCADE,
+	comment VARCHAR(300),
+	rating DECIMAL (3, 2) CHECK (rating BETWEEN 1 AND 5),
+	uploadedAt TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE Offer (
+	id SERIAL PRIMARY KEY,
+	clubId INT REFERENCES Club(userId) ON DELETE CASCADE,
+	name VARCHAR(50) NOT NULL,
+	description VARCHAR(300) NOT NULL,
+	monthlyPrice NUMERIC(12, 2) NOT NULL,
+	startedAt TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE Tutoring (
+	offerId INT PRIMARY KEY REFERENCES Offer(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Subscription (
+	offerId INT PRIMARY KEY REFERENCES Offer(id) ON DELETE CASCADE,
+	discountPercentage INT CHECK (discountPercentage BETWEEN 0 AND 100) NOT NULL
+);
+
+CREATE TABLE Booking (
+	id SERIAL PRIMARY KEY,
+	fieldId INT REFERENCES Field(id) ON DELETE CASCADE,
+	timeStart TIME NOT NULL,
+	timeEnd TIME NOT NULL,
+	dow INT CHECK (dow BETWEEN 1 AND 7) NOT NULL,
+	subscriptionId INT REFERENCES Subscription(offerId),
+	subscriptionPrice NUMERIC(12, 2)
+);
+
+CREATE TABLE Reservation (
+	reservationId SERIAL PRIMARY KEY,
+	bookingId INT REFERENCES Booking(id) ON DELETE CASCADE,
+	userId INT REFERENCES Player(userId) ON DELETE CASCADE,
+	date DATE NOT NULL,
+	reservedAt TIMESTAMP DEFAULT NOW(),
+	paid BOOLEAN NOT NULL,
+	repeating BOOLEAN NOT NULL
+);

@@ -1,5 +1,3 @@
-import datetime
-
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
@@ -53,7 +51,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Player(models.Model):
-    userid = models.OneToOneField(User, on_delete=models.CASCADE, db_column='userId', primary_key=True, related_name='player')
+    userid = models.OneToOneField(User, on_delete=models.CASCADE, db_column='userId', primary_key=True, related_name="player")
     first_name = models.CharField(max_length=40, db_column='firstName', blank=True)
     last_name = models.CharField(max_length=40, db_column='lastName', blank=True)
     phone_number = models.CharField(max_length=20, db_column='phoneNumber', blank=True)
@@ -68,8 +66,8 @@ class Player(models.Model):
             ('PROFESSIONAL', 'PROFESSIONAL')
         ]
     )
-    preferred_dow = models.IntegerField(db_column='preferredDow', null=True, default=0)
-    preferred_time = models.TimeField(db_column='preferredTime', null=True, default=datetime.time(9, 30))
+    preferred_dow = models.IntegerField(db_column='preferredDow', null=True, blank=True)
+    preferred_time = models.TimeField(db_column='preferredTime', null=True, blank=True)
 
     class Meta:
         db_table = 'player'
@@ -79,7 +77,7 @@ class Player(models.Model):
 
 
 class Club(models.Model):
-    userid = models.OneToOneField(User, on_delete=models.CASCADE, db_column='userId', primary_key=True, related_name='club')
+    userid = models.OneToOneField(User, on_delete=models.CASCADE, db_column='userId', primary_key=True, related_name="club")
     name = models.CharField(max_length=100, db_column='name')
     address = models.CharField(max_length=255, db_column='address', blank=True)
     description = models.TextField(db_column='description', blank=True)
@@ -99,8 +97,8 @@ class Admin(models.Model):
         User,
         on_delete=models.CASCADE,
         db_column='userId',
-        primary_key=True,
-        related_name='admin'
+        primary_key=True, 
+        related_name="admin"
     )
     first_name = models.CharField(max_length=40, db_column='firstName', blank=True)
     last_name = models.CharField(max_length=40, db_column='lastName', blank=True)
