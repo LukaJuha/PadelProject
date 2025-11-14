@@ -32,7 +32,7 @@ function Home() {
           style={styles.searchInput}
         />
         <div style={styles.filterIconContainer} onClick={toggleFilters}>
-          <img src="/src/assets/filter_icon.png" alt="Filtri" style={styles.filterIcon} />
+          <img src="/filter_icon.png" alt="Filtri" style={styles.filterIcon} />
         </div>
       </form>
 
