@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import "./styles/register.css"
@@ -9,6 +9,21 @@ function Register() {
   const [user, setUser] = useContext(UserContext);
   const [localUser, setLocalUser] = useState(null);
   const navigate = useNavigate();
+
+  /*
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setLocalUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (localUser) {
+      localStorage.setItem("user", JSON.stringify(localUser));
+    }
+  }, [localUser]);
+  */
 
   const register = (e) => {
     e.preventDefault();
@@ -33,6 +48,8 @@ function Register() {
   };
 
   const handleRoleSelection = async (role) => {
+    console.log('Selected role:', role);
+    console.log('Local user at role selection:', localUser);
     if (!localUser.credentials) {
       try {
         const registerData = {
@@ -41,6 +58,7 @@ function Register() {
           username: localUser.username,
           role: role.toUpperCase(),
         };
+        console.log('registerData:', registerData);
 
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
         const res = await fetch(backendURL + "/auth/register/", {
@@ -72,7 +90,7 @@ function Register() {
             const data = await res.json();
       
             if (res.ok) {
-              setUser({...localUser, role: role, accessToken: data.access, refreshToken: data.refresh, authenticated: true});
+              setUser({...localUser, role: role, accessToken: data.access, refreshToken: data.refresh, showRoles: false, authenticated: true});
               navigate("/");
             } else {
               alert(data.error || "Greška prilikom registracije");
@@ -96,6 +114,7 @@ function Register() {
           credential: localUser.credentials,
           role: role.toUpperCase(),
         };
+        console.log('registerData:', registerData);
 
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
         const res = await fetch(backendURL + "/auth/google/register/", {
@@ -115,7 +134,8 @@ function Register() {
             email: localUser.credentials?.email, 
             accessToken: data.access, 
             refreshToken: data.refresh,
-            role: role, 
+            role: role.toUpperCase(), 
+            showRoles: false,
             authenticated: true
           };
           

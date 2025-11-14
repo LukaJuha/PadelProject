@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import "./styles/login.css";
@@ -8,6 +8,8 @@ import GoogleLoginButton from "../components/googleOAuthButton";
 function Login() {
   const [user, setUser] = useContext(UserContext);
   const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(false);
 
   const handleRoleSelection = async (role) => {
     setUser({ ...user, role });
@@ -36,6 +38,7 @@ function Login() {
           accessToken: data.access, 
           refreshToken: data.refresh,
           role: role, 
+          showRoles: false,
           authenticated: true
         });
         navigate("/");
@@ -59,6 +62,7 @@ function Login() {
         password: user.password,
       };
 
+      setLoading(true);
       const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
       const res = await fetch(backendURL + "/auth/login/", {
         method: "POST",
@@ -67,12 +71,13 @@ function Login() {
         },
         body: JSON.stringify(loginData),
       });
+      setLoading(false);
 
       const data = await res.json();
 
       if (res.ok) {
         setUser({...user, accessToken: data.access, refreshToken: data.refresh, role: data.user.role, authenticated: true});
-        
+               
         navigate("/");
       } else {
         alert(data.error || "Greška prilikom prijave");
@@ -105,6 +110,13 @@ function Login() {
         <GoogleLoginButton user={user} setUser={setUser}/>
         <label>Nemate račun? <a href="/register">Registrirajte se</a></label>
       </div>
+      )}
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="loadingOverlay">
+          <img src="/spinner_loading.gif" alt="Loading..." id="loading-gif" />
+        </div>
       )}
 
       {(user?.showRoles)  && (

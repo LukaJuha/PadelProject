@@ -1,12 +1,20 @@
 import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import UserContext from "../user-context";
 
 export default function GoogleLoginButton({ user, setUser }) {
   const [globalUser, setGlobalUser] = useContext(UserContext);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if (storedUser && storedUser.authenticated) {
+      setGlobalUser(storedUser);
+    }
+  }, []);
+
   return (
     <div style={{ marginTop: "20px", display: "flex", justifyContent: "center" }}>
       <GoogleLogin

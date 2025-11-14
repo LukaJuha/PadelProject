@@ -1,10 +1,42 @@
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 
-const UserContext = createContext(null);
+const initialUserState = {
+  email: '',
+  password: '',
+  role: '',
+  authenticated: false,
+  accessToken: '',
+  refreshToken: '',
+  showRoles: false,
+  credentials: null,
+};
+
+const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-    // user = { name: "Guest", role: "Guest", email: null, authenticated: false }
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(initialUserState);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.authenticated) {
+          setUser(parsedUser);
+        }
+      } catch (error) {
+        console.error('Error parsing user data from localStorage: ', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
+    }
+  }, [user]);
 
   return (
     <UserContext.Provider value={[user, setUser]}>

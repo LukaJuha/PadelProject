@@ -4,7 +4,7 @@ import Register from "./pages/register.jsx";
 import Login from "./pages/login.jsx";
 import Profile from "./pages/profile.jsx";
 import { UserProvider } from "./user-context.jsx";
-import { useContext } from "react";
+import { useContext, useEffect  } from "react";
 import UserContext from "./user-context.jsx";
 import { useNavigate } from "react-router-dom";
 import ProtectedRoute from "./components/protectedRoute.jsx";
@@ -64,6 +64,7 @@ function AppContent() {
       } else if (res.ok) {
         const data = await res.json();
         setUser(null);
+        localStorage.removeItem("user");
         navigate("/");
       } else {
         let data = {};

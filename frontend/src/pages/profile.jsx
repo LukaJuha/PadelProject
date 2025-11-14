@@ -6,6 +6,7 @@ import "./styles/profile.css";
 
 function Profile() {
   const [user, setUser] = useContext(UserContext);
+
   const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
@@ -15,7 +16,6 @@ function Profile() {
   useEffect(() => {
     const getProfileData = async () => {
       try {
-        
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
         const res = await fetch(backendURL + "/auth/user/", {
           method: "GET",
@@ -36,6 +36,7 @@ function Profile() {
         }
 
         const data = await res.json();
+        console.log('data: ', data);
 
         if (user.role.toUpperCase() === "PLAYER") {
             const profileData = {
@@ -144,12 +145,12 @@ function Profile() {
             <div className="profileUserContainer">
                 <span>
                     <label>Username:</label>
-                    <input type="text" value={userData?.username} required disabled={!editing} className="profileTextInput" 
+                    <input type="text" value={userData?.username || ""} required disabled={!editing} className="profileTextInput" 
                     onChange={(e) => setUserData({...userData, username: e.target.value})} />
                 </span>
                 <span>
                     <label>Email:</label>
-                    <input type="email" value={userData?.email} required disabled className="profileTextInput" />
+                    <input type="email" value={userData?.email || ""} required disabled className="profileTextInput" />
                 </span>
             </div>
 
@@ -158,12 +159,12 @@ function Profile() {
                 <div className="profilePlayerContainer">
                     <span>
                         <label>Ime:</label>
-                        <input type="text" value={userData?.firstName} disabled={!editing} className="profileTextInput"
+                        <input type="text" value={userData?.firstName || ""} disabled={!editing} className="profileTextInput"
                         onChange={(e) => setUserData({...userData, firstName: e.target.value})} />
                     </span>
                     <span>
                         <label>Prezime:</label>
-                        <input type="text" value={userData?.lastName} disabled={!editing} className="profileTextInput" 
+                        <input type="text" value={userData?.lastName || ""} disabled={!editing} className="profileTextInput" 
                         onChange={(e) => setUserData({...userData, lastName: e.target.value})} />
                     </span>
                 </div>
