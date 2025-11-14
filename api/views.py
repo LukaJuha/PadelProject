@@ -262,11 +262,6 @@ def current_user(request):
     user = request.user
     account_type = user.account_type
     if account_type == 'PLAYER':
-        try:
-            player = user.player
-        except Player.DoesNotExist:
-            player = None
-
         return Response({
             'email': user.email,
             'username': user.username,
@@ -279,11 +274,6 @@ def current_user(request):
             'account_type': account_type,
         }, status=status.HTTP_200_OK)
     elif account_type == 'CLUB':
-        try:
-            club = user.club
-        except Player.DoesNotExist:
-            club = None
-
         return Response({
             'email': user.email,
             'username': user.username,
@@ -296,11 +286,6 @@ def current_user(request):
             'account_type': account_type,
         }, status=status.HTTP_200_OK)
     elif account_type == 'ADMIN':
-        try:
-            admin = user.admin
-        except Player.DoesNotExist:
-            admin = None
-
         return Response({
             'email': user.email,
             'username': user.username,
@@ -435,9 +420,6 @@ def change_password(request):
     user.save()
 
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
-
-
-
 
 
 def validate_password_detailed(password, user=None):
