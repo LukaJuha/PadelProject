@@ -152,6 +152,7 @@ function Register() {
             <button className="registerButton">Registriraj se</button>
           </form>
           <GoogleLoginButton user={localUser} setUser={setLocalUser} />
+          <label>Imate račun? <a href="/login">Prijavite se</a></label>
         </div>
       )}
 

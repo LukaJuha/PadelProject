@@ -87,19 +87,22 @@ function Login() {
       <h2>Prijava</h2>
 
       {(!user?.showRoles) && (
-      <form className="loginForm" onSubmit={login}>
+      <div>
+        <form className="loginForm" onSubmit={login}>
 
-        <label>Email:</label>
-        <input type="email" required className="loginInput"
-        onChange={(e) => setUser({...user, email: e.target.value})} />
+          <label>Email:</label>
+          <input type="email" required className="loginInput"
+          onChange={(e) => setUser({...user, email: e.target.value})} />
 
-        <label>Šifra:</label>
-        <input type="password" required className="loginInput" 
-        onChange={(e) => setUser({...user, password: e.target.value})} />
+          <label>Šifra:</label>
+          <input type="password" required className="loginInput" 
+          onChange={(e) => setUser({...user, password: e.target.value})} />
 
-        <button className="loginButton">Ulogiraj se</button>
+          <button className="loginButton">Ulogiraj se</button>
+        </form>
         <GoogleLoginButton user={user} setUser={setUser}/>
-      </form>
+        <label>Nemate račun? <a href="/register">Registrirajte se</a></label>
+      </div>
       )}
 
       {(user?.showRoles)  && (

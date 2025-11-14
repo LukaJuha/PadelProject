@@ -79,6 +79,7 @@ function AppContent() {
   return (
     <>
       <div style={styles.logo}>
+        <a href="/"><img style={styles.icon} src="/src/assets/favicon.ico" alt="ikona" /></a>
         <Link to="/" style={styles.logoLink}>ServeIt</Link>
       </div>
 
@@ -113,7 +114,7 @@ const styles = {
     width: "100%",
     backgroundColor: "white",
     boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-    padding: "1rem 2rem",
+    padding: "1rem 2rem 1rem 1rem",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
@@ -128,7 +129,9 @@ const styles = {
   },
   logoLink: {
     textDecoration: "none",
+    fontSize: "1.3em",
     color: "#007bff",
+    marginLeft: "8px",
   },
   navRight: {
     display: "flex",
@@ -146,6 +149,10 @@ const styles = {
   main: {
     paddingTop: "100px",
     textAlign: "center",
+  },
+  icon: {
+    marginTop: "15px",
+    height: "1em",
   },
 };
 
