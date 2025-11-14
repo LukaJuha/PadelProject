@@ -13,7 +13,8 @@ export default function GoogleLoginButton({ user, setUser }) {
         onSuccess={async (res) => {
           const credential = res.credential;
 
-          const checkRes = await fetch("http://localhost:8000/api/auth/google/check/", {
+          const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+          const checkRes = await fetch(backendURL + "/auth/google/check/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ credential }),
@@ -23,7 +24,8 @@ export default function GoogleLoginButton({ user, setUser }) {
 
           if (checkRes.ok) {
             if (data.exists) {
-              const loginRes = await fetch("http://localhost:8000/api/auth/google/login/", {
+              const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+              const loginRes = await fetch(backendURL + "/auth/google/login/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ credential }),

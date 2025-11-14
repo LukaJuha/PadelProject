@@ -42,7 +42,8 @@ function Register() {
           role: role.toUpperCase(),
         };
 
-        const res = await fetch("http://localhost:8000/api/auth/register/", {
+        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const res = await fetch(backendURL + "/auth/register/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -59,7 +60,8 @@ function Register() {
               password: localUser.password
             };
 
-            const res = await fetch("http://localhost:8000/api/auth/login/", {
+            const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+            const res = await fetch(backendURL + "/auth/login/", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -95,7 +97,8 @@ function Register() {
           role: role.toUpperCase(),
         };
 
-        const res = await fetch("http://localhost:8000/api/auth/google/register/", {
+        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const res = await fetch(backendURL + "/auth/google/register/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -49,7 +49,8 @@ function AppContent() {
         refresh: user.refreshToken,
       };
 
-      const res = await fetch("http://localhost:8000/api/auth/logout/", {
+      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const res = await fetch(backendURL + "/auth/logout/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

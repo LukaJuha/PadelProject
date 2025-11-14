@@ -15,7 +15,9 @@ function Profile() {
   useEffect(() => {
     const getProfileData = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/user/", {
+        
+        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const res = await fetch(backendURL + "/auth/user/", {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${user?.accessToken}`,
@@ -105,7 +107,9 @@ function Profile() {
                     working_hours: userData.workingHours,
                 };
             }
-            const res = await fetch("http://localhost:8000/api/auth/user/update/", {
+            
+            const backendURL = (import.meta.env.MODE === 'development') ? import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+            const res = await fetch(backendURL + "/auth/user/update/", {
               method: "PATCH",
               headers: {
                 "Authorization": `Bearer ${user.accessToken}`,
