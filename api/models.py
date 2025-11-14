@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
@@ -46,9 +48,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         db_table = 'profile'
 
-    def role(self):
-        return self.account_type
-
     def __str__(self):
         return f"{self.username} ({self.email})"
 
@@ -69,8 +68,8 @@ class Player(models.Model):
             ('PROFESSIONAL', 'PROFESSIONAL')
         ]
     )
-    preferred_dow = models.IntegerField(db_column='preferredDow', null=True, blank=True)
-    preferred_time = models.TimeField(db_column='preferredTime', null=True, blank=True)
+    preferred_dow = models.IntegerField(db_column='preferredDow', null=True, default=0)
+    preferred_time = models.TimeField(db_column='preferredTime', null=True, default=datetime.time(9, 30))
 
     class Meta:
         db_table = 'player'
