@@ -36,7 +36,6 @@ function Profile() {
         }
 
         const data = await res.json();
-        console.log('data: ', data);
 
         if (user.role.toUpperCase() === "PLAYER") {
             const profileData = {

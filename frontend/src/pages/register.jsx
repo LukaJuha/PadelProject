@@ -9,6 +9,7 @@ function Register() {
   const [user, setUser] = useContext(UserContext);
   const [localUser, setLocalUser] = useState(null);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   /*
   useEffect(() => {
@@ -48,8 +49,6 @@ function Register() {
   };
 
   const handleRoleSelection = async (role) => {
-    console.log('Selected role:', role);
-    console.log('Local user at role selection:', localUser);
     if (!localUser.credentials) {
       try {
         const registerData = {
@@ -58,8 +57,8 @@ function Register() {
           username: localUser.username,
           role: role.toUpperCase(),
         };
-        console.log('registerData:', registerData);
 
+        setLoading(true);
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
         const res = await fetch(backendURL + "/auth/register/", {
           method: "POST",
@@ -68,6 +67,7 @@ function Register() {
           },
           body: JSON.stringify(registerData),
         });
+        setLoading(false);
 
         const data = await res.json();
 
@@ -114,7 +114,6 @@ function Register() {
           credential: localUser.credentials,
           role: role.toUpperCase(),
         };
-        console.log('registerData:', registerData);
 
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
         const res = await fetch(backendURL + "/auth/google/register/", {
@@ -176,6 +175,13 @@ function Register() {
           </form>
           <GoogleLoginButton user={localUser} setUser={setLocalUser} />
           <label>Imate račun? <a href="/login">Prijavite se</a></label>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="loadingOverlay">
+          <img src="/spinner_loading.gif" alt="Loading..." id="loading-gif" />
         </div>
       )}
 

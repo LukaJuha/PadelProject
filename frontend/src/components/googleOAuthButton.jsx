@@ -67,7 +67,7 @@ export default function GoogleLoginButton({ user, setUser }) {
             setUser(null);
           }
         }}
-        onError={() => console.log("Login Failed")}
+        onError={() => console.error("Login Failed")}
       />
     </div>
   );

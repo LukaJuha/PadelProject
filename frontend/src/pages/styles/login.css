@@ -1,7 +1,6 @@
 .loginOkvir {
     text-align: center;
     margin-top: 50px;
-
 }
 
 .loginForm {
@@ -39,4 +38,4 @@
     justify-content: center;
     align-items: center;
     z-index: 9999;
-};
+}
