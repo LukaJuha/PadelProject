@@ -80,7 +80,7 @@ function AppContent() {
   return (
     <>
       <div style={styles.logo}>
-        <a href="/"><img style={styles.icon} src="/src/assets/favicon.ico" alt="ikona" /></a>
+        <a href="/"><img style={styles.icon} src="/logo.png" alt="ikona" /></a>
         <Link to="/" style={styles.logoLink}>ServeIt</Link>
       </div>
 

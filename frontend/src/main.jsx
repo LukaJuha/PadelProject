@@ -10,5 +10,5 @@ createRoot(document.getElementById('root')).render(
     <GoogleOAuthProvider clientId={import.meta.env.VITE_OAUTH2_CLIENTID}>
       <App />
     </GoogleOAuthProvider>
-  </StrictMode>,
+  </StrictMode>
 )
