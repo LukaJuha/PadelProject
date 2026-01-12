@@ -3,6 +3,12 @@ import Home from "./pages/home.jsx";
 import Register from "./pages/register.jsx";
 import Login from "./pages/login.jsx";
 import Profile from "./pages/profile.jsx";
+import Search from "./pages/search.jsx";
+import Management from "./pages/management.jsx";
+import FieldDetail from "./pages/fieldDetail.jsx";
+import ClubProfile from "./pages/clubProfile.jsx";
+import PublicFieldView from "./pages/publicFieldView.jsx";
+import Reservations from "./pages/reservations.jsx";
 import { UserProvider } from "./user-context.jsx";
 import { useContext, useEffect  } from "react";
 import UserContext from "./user-context.jsx";
@@ -29,6 +35,33 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/management"
+              element={
+                <ProtectedRoute>
+                  <Management />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/management/field/:fieldId"
+              element={
+                <ProtectedRoute>
+                  <FieldDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/club/:clubId" element={<ClubProfile />} />
+            <Route path="/club/:clubId/field/:fieldId" element={<PublicFieldView />} />
+            <Route
+              path="/reservations"
+              element={
+                <ProtectedRoute>
+                  <Reservations />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/search" element={<Search />} />
           </Routes>
         </main>
       </Router>
@@ -45,6 +78,9 @@ function AppContent() {
 
   const logout = async () => {
     try {
+      // Set loggingOut flag to prevent ProtectedRoute redirect race condition
+      setUser({ ...user, loggingOut: true });
+
       const userData = {
         refresh: user.refreshToken,
       };
@@ -72,9 +108,11 @@ function AppContent() {
           data = await res.json();
         } catch {}
         alert(data.error || "Greška prilikom odjave");
+        setUser({ ...user, loggingOut: false });
       }
     } catch (error) {
       console.error(error);
+      setUser({ ...user, loggingOut: false });
     }
   }
 
@@ -98,6 +136,12 @@ function AppContent() {
 
           {user?.authenticated && (
           <div style={styles.navRight}>
+            {user?.role?.toUpperCase() === 'CLUB' && (
+              <Link to="/management" style={styles.navButton}>Upravljanje</Link>
+            )}
+            {user?.role?.toUpperCase() === 'PLAYER' && (
+              <Link to="/reservations" style={styles.navButton}>Rezervacije</Link>
+            )}
             <Link to="/profile" style={styles.navButton}>Profil</Link>
             <button style={{ ...styles.navButton, backgroundColor: "#dc3545", color: "white" }} 
             onClick={logout}>

@@ -6,7 +6,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from .models import Player, Club, Admin
+from .models import Player, Club, Admin, Field, Booking, Reservation
+from django.db import connection
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from django.contrib.auth.password_validation import validate_password
@@ -472,3 +473,761 @@ def validate_password_detailed(password, user=None):
             errors.append("Password cannot contain your email address.")
     
     return errors
+
+@api_view(['GET'])
+def search(request):
+    # GET params
+    q = request.GET.get('q', '').strip()
+    search_type = (request.GET.get('type') or 'BOTH').upper()
+    field_location = (request.GET.get('fieldLocation') or 'BOTH').upper()
+    field_size = (request.GET.get('fieldSize') or 'BOTH').upper()
+    field_lighting = (request.GET.get('lighting') or 'BOTH').upper()
+    # fieldType may appear multiple times: ?fieldType=GRASS&fieldType=CONCRETE
+    field_types = request.GET.getlist('fieldType') or []
+
+    # Normalize types to upper
+    field_types = [t.upper() for t in field_types]
+
+    # Build filters for fields
+    from django.db.models import Q
+    field_filters = Q()
+
+    if q:
+        field_filters &= (Q(clubid__userid__username__icontains=q) | Q(name__icontains=q))
+
+    if field_location and field_location != 'BOTH':
+        field_filters &= Q(location=field_location)
+
+    if field_size and field_size != 'BOTH':
+        field_filters &= Q(size=field_size)
+
+    if field_lighting and field_lighting != 'BOTH':
+        if field_lighting == 'YES':
+            field_filters &= Q(lighting=True)
+        elif field_lighting == 'NO':
+            field_filters &= Q(lighting=False)
+
+    if field_types:
+        field_filters &= Q(floortype__in=field_types)
+
+    # Query matching fields and their club using ORM
+    field_objects = Field.objects.filter(field_filters).select_related('clubid')
+    
+    # Build response structure
+    fields = []
+    clubs_map = {}
+
+    for field in field_objects:
+        club = field.clubid
+        field_obj = {
+            'id': field.id,
+            'name': field.name,
+            'floorType': field.floortype,
+            'size': field.size,
+            'location': field.location,
+            'lighting': field.lighting,
+            'clubId': club.userid.id,
+            'clubName': club.userid.username,
+        }
+        fields.append(field_obj)
+
+        club_id = club.userid.id
+        if club_id not in clubs_map:
+            clubs_map[club_id] = {
+                'id': club_id,
+                'name': club.userid.username,
+                'address': club.address,
+                'description': club.description,
+                'ratingAvg': float(club.rating_avg) if club.rating_avg else None,
+                'fields': [field_obj],
+            }
+        else:
+            clubs_map[club_id]['fields'].append(field_obj)
+
+    clubs = list(clubs_map.values())
+
+    result = {'clubs': [], 'fields': []}
+
+    if search_type in ('BOTH', 'CLUB'):
+        # return clubs that have matching fields
+        result['clubs'] = clubs
+
+    if search_type in ('BOTH', 'FIELD'):
+        result['fields'] = fields
+
+    return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_fields(request):
+    """
+    GET /fields/
+    Returns all fields for the authenticated club user.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can access this endpoint'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field_objects = Field.objects.filter(clubid=club).order_by('name')
+        
+        fields = []
+        for field in field_objects:
+            fields.append({
+                'id': field.id,
+                'name': field.name,
+                'floorType': field.floortype,
+                'floor_type': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceilingHeight': field.ceilingheight,
+                'ceiling_height': field.ceilingheight,
+                'lighting': field.lighting,
+            })
+        
+        return Response({'fields': fields}, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_field(request):
+    """
+    POST /fields/create/
+    Body: { name, floor_type, size, location, ceiling_height (optional), lighting }
+    Creates a new field for the authenticated club user.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can create fields'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        name = request.data.get('name')
+        floor_type = request.data.get('floor_type', '').upper()
+        size = request.data.get('size', '').upper()
+        location = request.data.get('location', '').upper()
+        ceiling_height = request.data.get('ceiling_height')
+        lighting = request.data.get('lighting', True)
+        
+        # Validation
+        if not name:
+            return Response({'error': 'Field name is required'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_floor_types = ['HARDWOOD', 'GRASS', 'TURF', 'ARTIFICIAL']
+        if floor_type not in valid_floor_types:
+            return Response({'error': f'Invalid floor type. Must be one of: {", ".join(valid_floor_types)}'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        if size not in ['SINGLE', 'DOUBLE']:
+            return Response({'error': 'Size must be SINGLE or DOUBLE'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        if location not in ['INSIDE', 'OUTSIDE']:
+            return Response({'error': 'Location must be INSIDE or OUTSIDE'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        club = Club.objects.get(userid=user)
+        
+        # Create the field using ORM
+        field = Field.objects.create(
+            clubid=club,
+            name=name,
+            floortype=floor_type,
+            size=size,
+            location=location,
+            ceilingheight=ceiling_height,
+            lighting=lighting
+        )
+        
+        return Response({
+            'message': 'Field created successfully',
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'floorType': field.floortype,
+                'floor_type': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceilingHeight': field.ceilingheight,
+                'ceiling_height': field.ceilingheight,
+                'lighting': field.lighting,
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_field(request, field_id):
+    """
+    GET /fields/{field_id}/
+    Returns a specific field (must belong to authenticated club).
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can access this endpoint'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        
+        return Response({
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'floorType': field.floortype,
+                'floor_type': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceilingHeight': field.ceilingheight,
+                'ceiling_height': field.ceilingheight,
+                'lighting': field.lighting,
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_field(request, field_id):
+    """
+    DELETE /fields/{field_id}/delete/
+    Deletes a field and all its bookings (must belong to authenticated club).
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can delete fields'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        field.delete()
+        
+        return Response({'message': 'Field deleted successfully'}, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_field_bookings(request, field_id):
+    """
+    GET /fields/{field_id}/bookings/
+    Returns all bookings for a specific field.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can access this endpoint'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        bookings = Booking.objects.filter(field=field).order_by('day_of_week', 'start_time')
+        
+        booking_list = []
+        for booking in bookings:
+            booking_list.append({
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+            })
+        
+        return Response({'bookings': booking_list}, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_booking(request, field_id):
+    """
+    POST /fields/{field_id}/bookings/create/
+    Body: { title, day_of_week, start_time, end_time }
+    Creates a new booking for a field.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can create bookings'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        title = request.data.get('title')
+        day_of_week = request.data.get('day_of_week')
+        start_time = request.data.get('start_time')
+        end_time = request.data.get('end_time')
+        
+        if not all([title, day_of_week is not None, start_time, end_time]):
+            return Response({'error': 'title, day_of_week, start_time, end_time are required'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        if not (0 <= int(day_of_week) <= 6):
+            return Response({'error': 'day_of_week must be 0-6'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        
+        booking = Booking.objects.create(
+            field=field,
+            title=title,
+            day_of_week=int(day_of_week),
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        return Response({
+            'message': 'Booking created successfully',
+            'booking': {
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_booking(request, field_id, booking_id):
+    """
+    PUT /fields/{field_id}/bookings/{booking_id}/
+    Body: { title, day_of_week, start_time, end_time }
+    Updates a booking.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can update bookings'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        booking = Booking.objects.get(id=booking_id, field=field)
+        
+        # Update fields if provided
+        if 'title' in request.data:
+            booking.title = request.data.get('title')
+        if 'day_of_week' in request.data:
+            day_of_week = int(request.data.get('day_of_week'))
+            if not (0 <= day_of_week <= 6):
+                return Response({'error': 'day_of_week must be 0-6'}, 
+                               status=status.HTTP_400_BAD_REQUEST)
+            booking.day_of_week = day_of_week
+        if 'start_time' in request.data:
+            booking.start_time = request.data.get('start_time')
+        if 'end_time' in request.data:
+            booking.end_time = request.data.get('end_time')
+        
+        booking.save()
+        
+        return Response({
+            'message': 'Booking updated successfully',
+            'booking': {
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_booking(request, field_id, booking_id):
+    """
+    DELETE /fields/{field_id}/bookings/{booking_id}/
+    Deletes a booking.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can delete bookings'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        booking = Booking.objects.get(id=booking_id, field=field)
+        booking.delete()
+        
+        return Response({'message': 'Booking deleted successfully'}, 
+                       status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_field(request, field_id):
+    """
+    PUT /fields/{field_id}/
+    Body: { name, floor_type, size, location, ceiling_height, lighting }
+    Updates a field.
+    """
+    user = request.user
+    
+    if user.role != 'CLUB':
+        return Response({'error': 'Only club accounts can update fields'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        club = Club.objects.get(userid=user)
+        field = Field.objects.get(id=field_id, clubid=club)
+        
+        # Update fields if provided
+        if 'name' in request.data:
+            field.name = request.data.get('name')
+        if 'floor_type' in request.data:
+            field.floor_type = request.data.get('floor_type')
+        if 'size' in request.data:
+            field.size = request.data.get('size')
+        if 'location' in request.data:
+            field.location = request.data.get('location')
+        if 'ceiling_height' in request.data:
+            ch = request.data.get('ceiling_height')
+            field.ceiling_height = int(ch) if ch else None
+        if 'lighting' in request.data:
+            field.lighting = request.data.get('lighting')
+        
+        field.save()
+        
+        return Response({
+            'message': 'Field updated successfully',
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'floor_type': field.floor_type,
+                'size': field.size,
+                'location': field.location,
+                'ceiling_height': field.ceiling_height,
+                'lighting': field.lighting,
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_club(request, club_id):
+    """
+    GET /clubs/{club_id}/
+    Returns club information and its fields (public endpoint).
+    """
+    try:
+        club = Club.objects.get(userid_id=club_id)
+        fields = Field.objects.filter(clubid=club)
+        
+        field_list = []
+        for field in fields:
+            field_list.append({
+                'id': field.id,
+                'name': field.name,
+                'floor_type': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceiling_height': field.ceilingheight,
+                'lighting': field.lighting,
+            })
+        
+        return Response({
+            'club': {
+                'id': club.userid.id,
+                'name': club.userid.username,
+                'email': club.userid.email,
+            },
+            'fields': field_list
+        }, status=status.HTTP_200_OK)
+        
+    except Club.DoesNotExist:
+        return Response({'error': 'Club not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_public_field(request, field_id):
+    """
+    GET /fields/{field_id}/public/
+    Returns field information and bookings (public endpoint for players to view).
+    """
+    try:
+        field = Field.objects.get(id=field_id)
+        
+        return Response({
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'floor_type': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceiling_height': field.ceilingheight,
+                'lighting': field.lighting,
+                'club_id': field.clubid.userid.id,
+                'club_name': field.clubid.userid.username,
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_public_field_bookings(request, field_id):
+    """
+    GET /fields/{field_id}/bookings/public/
+    Returns all bookings for a specific field (public endpoint for viewing schedule).
+    """
+    try:
+        field = Field.objects.get(id=field_id)
+        bookings = Booking.objects.filter(field=field).order_by('day_of_week', 'start_time')
+        
+        booking_list = []
+        for booking in bookings:
+            booking_list.append({
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+            })
+        
+        return Response({'bookings': booking_list}, status=status.HTTP_200_OK)
+        
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reserve_booking(request, field_id):
+    """
+    POST /fields/{field_id}/reserve/
+    Body: { booking_id }
+    Allows players to reserve a booking term.
+    """
+    user = request.user
+    
+    if user.role != 'PLAYER':
+        return Response({'error': 'Only players can make reservations'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        booking_id = request.data.get('booking_id')
+        
+        if not booking_id:
+            return Response({'error': 'booking_id is required'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        player = Player.objects.get(userid=user)
+        booking = Booking.objects.get(id=booking_id, field_id=field_id)
+        
+        # Check if already reserved
+        if Reservation.objects.filter(booking=booking, player=player).exists():
+            return Response({'error': 'You have already reserved this booking'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        reservation = Reservation.objects.create(
+            booking=booking,
+            player=player
+        )
+        
+        return Response({
+            'message': 'Reservation created successfully',
+            'reservation': {
+                'id': reservation.id,
+                'booking_id': reservation.booking.id,
+                'booking_title': reservation.booking.title,
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Player.DoesNotExist:
+        return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_field_reservations(request, field_id):
+    """
+    GET /fields/{field_id}/reservations/
+    Returns all reservations for a specific field made by the authenticated player.
+    """
+    user = request.user
+    
+    if user.role != 'PLAYER':
+        return Response({'error': 'Only players can view their reservations'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        player = Player.objects.get(userid=user)
+        reservations = Reservation.objects.filter(
+            booking__field_id=field_id,
+            player=player
+        )
+        
+        reservation_list = []
+        for res in reservations:
+            reservation_list.append({
+                'id': res.id,
+                'booking_id': res.booking.id,
+                'booking_title': res.booking.title,
+                'day_of_week': res.booking.day_of_week,
+                'start_time': str(res.booking.start_time),
+                'end_time': str(res.booking.end_time),
+            })
+        
+        return Response({'reservations': reservation_list}, status=status.HTTP_200_OK)
+        
+    except Player.DoesNotExist:
+        return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_player_reservations(request):
+    """
+    GET /reservations/
+    Returns all reservations for the authenticated player.
+    """
+    user = request.user
+    
+    if user.role != 'PLAYER':
+        return Response({'error': 'Only players can view reservations'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        player = Player.objects.get(userid=user)
+        reservations = Reservation.objects.filter(player=player).select_related(
+            'booking__field__clubid__userid'
+        )
+        
+        reservation_list = []
+        for res in reservations:
+            reservation_list.append({
+                'id': res.id,
+                'booking_id': res.booking.id,
+                'booking_title': res.booking.title,
+                'day_of_week': res.booking.day_of_week,
+                'start_time': str(res.booking.start_time),
+                'end_time': str(res.booking.end_time),
+                'field_id': res.booking.field.id,
+                'field_name': res.booking.field.name,
+                'club_id': res.booking.field.clubid.userid.id,
+                'club_name': res.booking.field.clubid.userid.username,
+            })
+        
+        return Response({'reservations': reservation_list}, status=status.HTTP_200_OK)
+        
+    except Player.DoesNotExist:
+        return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_reservation(request, reservation_id):
+    """
+    DELETE /reservations/{reservation_id}/
+    Deletes a reservation for the authenticated player.
+    """
+    user = request.user
+    
+    if user.role != 'PLAYER':
+        return Response({'error': 'Only players can delete reservations'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        player = Player.objects.get(userid=user)
+        reservation = Reservation.objects.get(id=reservation_id, player=player)
+        reservation.delete()
+        
+        return Response({'message': 'Reservation deleted successfully'}, 
+                       status=status.HTTP_200_OK)
+        
+    except Player.DoesNotExist:
+        return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Reservation.DoesNotExist:
+        return Response({'error': 'Reservation not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

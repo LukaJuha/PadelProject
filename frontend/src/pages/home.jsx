@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { SearchFilter } from "../components/searchFilter";
+import SearchFilters from "../components/searchFilters";
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(new SearchFilter());
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      const params = new URLSearchParams();
+      params.set("q", searchQuery.trim());
+      if (filters.searchType) params.set("type", filters.searchType);
+      if (filters.fieldLocation) params.set("fieldLocation", filters.fieldLocation);
+      if (filters.fieldSize) params.set("fieldSize", filters.fieldSize);
+      if (filters.fieldLighting) params.set("lighting", filters.fieldLighting);
+      if (Array.isArray(filters.fieldType)) filters.fieldType.forEach((t) => params.append("fieldType", t));
+      navigate(`/search?${params.toString()}`);
     }
   };
 
@@ -38,15 +48,7 @@ function Home() {
 
       {/* Filter Modal */}
       {showFilters && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3>Odaberite filtre</h3>
-            {/* Add filter options here */}
-            <button onClick={toggleFilters} style={styles.closeButton}>
-              Zatvori
-            </button>
-          </div>
-        </div>
+        <SearchFilters filters={filters} setFilters={setFilters} onClose={toggleFilters} />
       )}
     </div>
   );
