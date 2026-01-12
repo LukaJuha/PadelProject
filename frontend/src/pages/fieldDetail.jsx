@@ -329,9 +329,8 @@ function FieldDetail() {
               onChange={(e) => setEditingField({ ...editingField, floorType: e.target.value })}
               style={styles.select}
             >
-              <option value="HARDWOOD">Hardwood</option>
+              <option value="HARDWOOD">Parket</option>
               <option value="GRASS">Trava</option>
-              <option value="TURF">Turf</option>
               <option value="ARTIFICIAL">Umjetna trava</option>
             </select>
           </div>

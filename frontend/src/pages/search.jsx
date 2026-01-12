@@ -99,20 +99,20 @@ function Search() {
 
       {/* Search Results */}
       <div>
-        {loading && <p>Loading results...</p>}
+        {loading && <p>Učitavanje...</p>}
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <h3>Clubs</h3>
+        <h3>Klubovi</h3>
         {results.clubs.length === 0 ? (
-          <p>No matching clubs.</p>
+          <p>Nema odgovarajućih klubova.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={cellStyle}>Name</th>
-                <th style={cellStyle}>Address</th>
-                <th style={cellStyle}>Rating</th>
-                <th style={cellStyle}>Matching Fields</th>
+                <th style={cellStyle}>Ime</th>
+                <th style={cellStyle}>Adresa</th>
+                <th style={cellStyle}>Ocjena</th>
+                <th style={cellStyle}>Broj odgovarajućih terena</th>
               </tr>
             </thead>
             <tbody>
@@ -136,19 +136,19 @@ function Search() {
           </table>
         )}
 
-        <h3>Fields</h3>
+        <h3>Tereni</h3>
         {results.fields.length === 0 ? (
-          <p>No matching fields.</p>
+          <p>Nema odgovarajućih terena.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={cellStyle}>Name</th>
-                <th style={cellStyle}>Club</th>
-                <th style={cellStyle}>Floor Type</th>
-                <th style={cellStyle}>Size</th>
-                <th style={cellStyle}>Location</th>
-                <th style={cellStyle}>Lighting</th>
+                <th style={cellStyle}>Ime</th>
+                <th style={cellStyle}>Klub</th>
+                <th style={cellStyle}>Vrsta podloge</th>
+                <th style={cellStyle}>Velićina</th>
+                <th style={cellStyle}>Lokacija</th>
+                <th style={cellStyle}>Osvjetljenje</th>
               </tr>
             </thead>
             <tbody>
@@ -172,10 +172,20 @@ function Search() {
                       {f.clubName}
                     </a>
                   </td>
-                  <td style={cellStyle}>{f.floorType}</td>
-                  <td style={cellStyle}>{f.size}</td>
-                  <td style={cellStyle}>{f.location}</td>
-                  <td style={cellStyle}>{f.lighting ? 'Yes' : 'No'}</td>
+                  <td style={cellStyle}>{
+                        (f.floorType== "HARDWOOD" || f.floor_type == "HARDWOOD") ? 'Parket' :
+                        (f.floorType== "GRASS" || f.floor_type == "GRASS") ? 'Trava' :
+                        (f.floorType== "ARTIFICIAL" || f.floor_type == "ARTIFICIAL") ? 'Umjetna trava' : ''
+                        } </td>
+                  <td style={cellStyle}>{
+                      f.size== "SINGLE" ? 'Single' :
+                      f.size== "DOUBLE"  ? 'Double' : ''
+                      }</td>
+                  <td style={cellStyle}>{
+                      f.location== "OUTSIDE" ? 'Vani' :
+                      f.location== "INSIDE"  ? 'Unutra' : ''
+                      }</td>
+                  <td style={cellStyle}>{f.lighting ? 'Da' : 'Ne'}</td>
                 </tr>
               ))}
             </tbody>

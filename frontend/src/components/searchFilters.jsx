@@ -51,10 +51,12 @@ export default function SearchFilters({ filters, setFilters, onClose }) {
           </div>
           <div>
             <p>Tip podloge</p>
-            <input type="checkbox" id="filterFieldTypeConcrete" name="filterFieldType" value="CONCRETE" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('CONCRETE')} checked={filters.fieldType.includes('CONCRETE')} />
-            <label htmlFor="filterFieldTypeConcrete">Beton</label><br/>
+            <input type="checkbox" id="filterFieldTypeHardwood" name="filterFieldType" value="HARDWOOD" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('HARDWOOD')} checked={filters.fieldType.includes('HARDWOOD')} />
+            <label htmlFor="filterFieldTypeHardwood">Parket</label><br/>
             <input type="checkbox" id="filterFieldTypeGrass" name="filterFieldType" value="GRASS" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('GRASS')} checked={filters.fieldType.includes('GRASS')} />
             <label htmlFor="filterFieldTypeGrass">Trava</label>
+            <input type="checkbox" id="filterFieldTypeArtificial" name="filterFieldType" value="ARTIFICIAL" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('ARTIFICIAL')} checked={filters.fieldType.includes('ARTIFICIAL')} />
+            <label htmlFor="filterFieldTypeArtificial">Umjetna trava</label>
           </div>
           <div>
             <p>Osvjetljenje</p>

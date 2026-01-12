@@ -5,8 +5,8 @@ export class SearchFilter {
     fieldLocation = "BOTH";
     // BOTH, SINGLE, DOUBLE
     fieldSize = "BOTH";
-    // CONCRETE, GRASS
-    fieldType = ["CONCRETE", "GRASS"];
+    // HARDWOOD, GRASS, ARTIFICIAL
+    fieldType = ['HARDWOOD', 'GRASS', 'ARTIFICIAL'];
     // BOTH, YES, NO
     fieldLighting = "BOTH";
 }

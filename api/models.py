@@ -118,7 +118,6 @@ class Field(models.Model):
     FLOOR_TYPES = [
         ('HARDWOOD', 'Hardwood'),
         ('GRASS', 'Grass'),
-        ('TURF', 'Turf'),
         ('ARTIFICIAL', 'Artificial'),
     ]
     

@@ -134,9 +134,8 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, floorType: e.target.value })}
                   style={styles.select}
                 >
-                  <option value="HARDWOOD">Hardwood</option>
+                  <option value="HARDWOOD">Parket</option>
                   <option value="GRASS">Trava</option>
-                  <option value="TURF">Turf</option>
                   <option value="ARTIFICIAL">Umjetna trava</option>
                 </select>
               </div>
@@ -166,7 +165,7 @@ function Management() {
               </div>
 
               <div style={styles.formGroup}>
-                <label>Visina stropa (cm, opciono):</label>
+                <label>Visina stropa (cm, opcionalno):</label>
                 <input
                   type="number"
                   value={newField.ceilingHeight}
@@ -213,9 +212,21 @@ function Management() {
                   {fields.map((field) => (
                     <tr key={field.id}>
                       <td style={styles.td}>{field.name}</td>
-                      <td style={styles.td}>{field.floorType || field.floor_type}</td>
-                      <td style={styles.td}>{field.size}</td>
-                      <td style={styles.td}>{field.location}</td>
+                      <td style={styles.td}>{
+                        (field.floorType== "HARDWOOD" || field.floor_type == "HARDWOOD") ? 'Parket' :
+                        (field.floorType== "GRASS" || field.floor_type == "GRASS") ? 'Trava' :
+                        (field.floorType== "ARTIFICIAL" || field.floor_type == "ARTIFICIAL") ? 'Umjetna trava' : ''
+                        } 
+                      </td>
+                      <td style={styles.td}>{
+                      field.size== "SINGLE" ? 'Single' :
+                      field.size== "DOUBLE"  ? 'Double' : ''
+                      }</td>
+                      <td style={styles.td}>{
+                      field.location== "OUTSIDE" ? 'Vani' :
+                      field.location== "INSIDE"  ? 'Unutra' : ''
+                      }
+                      </td>
                       <td style={styles.td}>{field.ceilingHeight || field.ceiling_height || '-'}</td>
                       <td style={styles.td}>{field.lighting ? 'Da' : 'Ne'}</td>
                       <td style={styles.td}>
