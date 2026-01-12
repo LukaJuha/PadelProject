@@ -9,6 +9,7 @@ const initialUserState = {
   refreshToken: '',
   showRoles: false,
   credentials: null,
+  loggingOut: false,
 };
 
 const UserContext = createContext();

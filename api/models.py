@@ -112,3 +112,66 @@ class Admin(models.Model):
 
     def __str__(self):
         return f"{self.userid.email} (Admin)"
+
+
+class Field(models.Model):
+    FLOOR_TYPES = [
+        ('HARDWOOD', 'Hardwood'),
+        ('GRASS', 'Grass'),
+        ('TURF', 'Turf'),
+        ('ARTIFICIAL', 'Artificial'),
+    ]
+    
+    SIZE_CHOICES = [
+        ('SINGLE', 'Single'),
+        ('DOUBLE', 'Double'),
+    ]
+    
+    LOCATION_CHOICES = [
+        ('INSIDE', 'Inside'),
+        ('OUTSIDE', 'Outside'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    clubid = models.ForeignKey(Club, on_delete=models.CASCADE, db_column='clubId', related_name='fields')
+    name = models.CharField(max_length=50, db_column='name')
+    floortype = models.CharField(max_length=20, db_column='floorType', choices=FLOOR_TYPES)
+    size = models.CharField(max_length=20, db_column='size', choices=SIZE_CHOICES)
+    location = models.CharField(max_length=20, db_column='location', choices=LOCATION_CHOICES)
+    ceilingheight = models.IntegerField(db_column='ceilingHeight', null=True, blank=True)
+    lighting = models.BooleanField(db_column='lighting', default=True)
+    
+    class Meta:
+        db_table = 'field'
+    
+    def __str__(self):
+        return f"{self.name} ({self.clubid.name})"
+
+
+class Booking(models.Model):
+    id = models.AutoField(primary_key=True)
+    field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name='bookings')
+    title = models.CharField(max_length=100)
+    day_of_week = models.IntegerField()  # 0=Sunday, 1=Monday, ..., 6=Saturday
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    
+    class Meta:
+        db_table = 'booking'
+    
+    def __str__(self):
+        return f"{self.title} on {self.field.name}"
+
+
+class Reservation(models.Model):
+    id = models.AutoField(primary_key=True)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='reservations')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='reservations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'reservation'
+        unique_together = ('booking', 'player')
+    
+    def __str__(self):
+        return f"{self.player.userid.username} - {self.booking.title}"

@@ -5,7 +5,8 @@ import UserContext from "../user-context";
 export default function ProtectedRoute({ children }) {
   const [user] = useContext(UserContext);
 
-  if (!user?.authenticated) {
+  // Don't redirect if user is logging out 
+  if (!user?.authenticated && !user?.loggingOut) {
     return <Navigate to="/login" />;
   }
 
