@@ -424,6 +424,37 @@ def change_password(request):
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account(request):
+    """
+    DELETE with optional password confirmation
+    Body: { "password": "..." } (optional but recommended)
+    Auth required (Authorization: Bearer <access>)
+    Deletes the currently authenticated user and all related data
+    """
+    password = request.data.get('password')
+    user = request.user
+
+    # Optional password verification for extra security
+    if password:
+        if not user.check_password(password):
+            return Response({'error': 'Password is incorrect'}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Delete the user (cascade will delete related Player/Club/Admin/Reviews/etc)
+        user_email = user.email
+        user.delete()
+
+        return Response({
+            'message': f'Account {user_email} has been permanently deleted'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 def validate_password_detailed(password, user=None):
     """
     Custom password validation that returns specific, user-friendly error messages

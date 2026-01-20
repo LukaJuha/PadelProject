@@ -57,6 +57,37 @@ Content-Type: application/json
 }
 
 
+### delete account with password confirmation (recommended)
+DELETE http://localhost:8000/api/auth/user/delete/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY4OTQwODE0LCJpYXQiOjE3Njg5MzcyMTQsImp0aSI6Ijg3OWVjMTFlMmY0ZDQ0YzU5MDQwYzgyZjQwN2Q0ZmJiIiwidXNlcl9pZCI6IjEifQ.Ma2s9LXCZpfiW5Kh53GSLxGcWXNXdPuVey7A3aRPXdc
+Content-Type: application/json
+
+{
+  "password": "StrongPass123!"
+}
+
+
+### delete account without password (less secure)
+DELETE http://localhost:8000/api/auth/user/delete/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### test delete account with wrong password (should fail)
+DELETE http://localhost:8000/api/auth/user/delete/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "password": "WrongPassword123!"
+}
+
+
+### test delete account without authentication (should fail)
+DELETE http://localhost:8000/api/auth/user/delete/
+Content-Type: application/json
+
+
 ### create review
 POST http://localhost:8000/api/reviews/
 Authorization: Bearer PASTE_ACCESS_TOKEN_HERE

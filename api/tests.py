@@ -396,3 +396,142 @@ class ReviewAPITestCase(APITestCase):
         # Check updated rating (should be 5.0 now)
         self.club_user.club.refresh_from_db()
         self.assertEqual(float(self.club_user.club.rating_avg), 5.0)
+
+class DeleteAccountAPITestCase(APITestCase):
+    """Test suite for Delete Account API endpoint"""
+
+    def setUp(self):
+        """Set up test data"""
+        # Create a player user
+        self.player_user = User.objects.create_user(
+            email='player@test.com',
+            username='testplayer',
+            password='testpass123',
+            role='PLAYER'
+        )
+        Player.objects.create(
+            userid=self.player_user,
+            first_name='Test',
+            last_name='Player'
+        )
+
+        # Create a club user
+        self.club_user = User.objects.create_user(
+            email='club@test.com',
+            username='testclub',
+            password='testpass123',
+            role='CLUB'
+        )
+        Club.objects.create(
+            userid=self.club_user,
+            name='Test Tennis Club',
+            address='123 Test St'
+        )
+
+        # Get JWT token for authentication
+        refresh = RefreshToken.for_user(self.player_user)
+        self.access_token = str(refresh.access_token)
+        
+        # Set up API client
+        self.client = APIClient()
+
+    def test_delete_account_with_password_success(self):
+        """Test deleting account with password confirmation"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        data = {
+            'password': 'testpass123'
+        }
+        
+        response = self.client.delete('/api/auth/user/delete/', data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('permanently deleted', response.data['message'])
+        
+        # Verify user is deleted
+        self.assertFalse(User.objects.filter(email='player@test.com').exists())
+        
+        # Verify related Player is also deleted (cascade)
+        self.assertFalse(Player.objects.filter(userid=self.player_user.id).exists())
+
+    def test_delete_account_without_password_success(self):
+        """Test deleting account without password confirmation"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        response = self.client.delete('/api/auth/user/delete/', format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('permanently deleted', response.data['message'])
+        
+        # Verify user is deleted
+        self.assertFalse(User.objects.filter(email='player@test.com').exists())
+
+    def test_delete_account_with_wrong_password(self):
+        """Test deleting account with incorrect password"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        data = {
+            'password': 'wrongpassword'
+        }
+        
+        response = self.client.delete('/api/auth/user/delete/', data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('incorrect', response.data['error'])
+        
+        # Verify user still exists
+        self.assertTrue(User.objects.filter(email='player@test.com').exists())
+
+    def test_delete_account_without_authentication(self):
+        """Test deleting account without authentication fails"""
+        response = self.client.delete('/api/auth/user/delete/', format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Verify user still exists
+        self.assertTrue(User.objects.filter(email='player@test.com').exists())
+
+    def test_delete_club_account_cascades(self):
+        """Test deleting club account also deletes related Club record"""
+        refresh = RefreshToken.for_user(self.club_user)
+        club_token = str(refresh.access_token)
+        
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {club_token}')
+        
+        response = self.client.delete('/api/auth/user/delete/', format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify club user is deleted
+        self.assertFalse(User.objects.filter(email='club@test.com').exists())
+        
+        # Verify related Club is also deleted (cascade)
+        self.assertFalse(Club.objects.filter(userid=self.club_user.id).exists())
+
+    def test_delete_account_with_reviews_cascades(self):
+        """Test deleting account also deletes all reviews by that user"""
+        # Create some reviews
+        Review.objects.create(
+            userid=self.player_user,
+            clubid=self.club_user,
+            comment='Test review 1',
+            rating=4.0
+        )
+        Review.objects.create(
+            userid=self.player_user,
+            clubid=self.club_user,
+            comment='Test review 2',
+            rating=5.0
+        )
+        
+        # Verify reviews exist
+        self.assertEqual(Review.objects.filter(userid=self.player_user).count(), 2)
+        
+        # Delete account
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        response = self.client.delete('/api/auth/user/delete/', format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify reviews are also deleted (cascade)
+        self.assertEqual(Review.objects.filter(userid=self.player_user.id).count(), 0)
