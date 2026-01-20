@@ -59,7 +59,7 @@ Content-Type: application/json
 
 ### delete account with password confirmation (recommended)
 DELETE http://localhost:8000/api/auth/user/delete/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY4OTQwODE0LCJpYXQiOjE3Njg5MzcyMTQsImp0aSI6Ijg3OWVjMTFlMmY0ZDQ0YzU5MDQwYzgyZjQwN2Q0ZmJiIiwidXNlcl9pZCI6IjEifQ.Ma2s9LXCZpfiW5Kh53GSLxGcWXNXdPuVey7A3aRPXdc
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
 Content-Type: application/json
 
 {
@@ -194,4 +194,92 @@ Content-Type: application/json
 ### test delete non-existent review (should fail)
 DELETE http://localhost:8000/api/reviews/99999/
 Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### ============= ADMIN ENDPOINTS =============
+
+### register admin user for testing
+POST http://localhost:8000/api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "AdmainPass123!",
+  "username": "admin",
+  "role": "ADMIN"
+}
+
+### login
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+    "email": "admin@example.com",
+    "password": "AdmainPass123!"
+}
+
+
+### admin - list all users
+GET http://localhost:8000/api/admin/users/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - list users by role (PLAYER)
+GET http://localhost:8000/api/admin/users/?role=PLAYER
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - search users
+GET http://localhost:8000/api/admin/users/?search=test
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - get specific user details
+GET http://localhost:8000/api/admin/users/1/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - update user profile
+PATCH http://localhost:8000/api/admin/users/1/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "username": "updatedusername",
+  "first_name": "Updated",
+  "last_name": "Name"
+}
+
+
+### admin - delete user account
+DELETE http://localhost:8000/api/admin/users/1/delete/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - delete review (content moderation)
+DELETE http://localhost:8000/api/admin/reviews/1/delete/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### admin - get platform statistics
+GET http://localhost:8000/api/admin/statistics/
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### test admin endpoint without admin role (should fail)
+GET http://localhost:8000/api/admin/users/
+Authorization: Bearer PASTE_PLAYER_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### test admin endpoint without authentication (should fail)
+GET http://localhost:8000/api/admin/users/
 Content-Type: application/json

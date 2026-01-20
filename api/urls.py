@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, admin_views
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
@@ -35,4 +35,11 @@ urlpatterns = [
     path('reviews/user/<int:user_id>/', views.get_reviews_by_user, name='get_reviews_by_user'),
     path('reviews/club/<int:club_id>/', views.get_reviews_by_club, name='get_reviews_by_club'),
     path('reviews/<int:review_id>/', views.delete_review, name='delete_review'),
+    # Admin endpoints
+    path('admin/users/', admin_views.admin_list_users, name='admin_list_users'),
+    path('admin/users/<int:user_id>/', admin_views.admin_get_user, name='admin_get_user'),
+    path('admin/users/<int:user_id>/update/', admin_views.admin_update_user, name='admin_update_user'),
+    path('admin/users/<int:user_id>/delete/', admin_views.admin_delete_user, name='admin_delete_user'),
+    path('admin/reviews/<int:review_id>/delete/', admin_views.admin_delete_review, name='admin_delete_review'),
+    path('admin/statistics/', admin_views.admin_statistics, name='admin_statistics'),
 ]
