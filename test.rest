@@ -147,3 +147,20 @@ Content-Type: application/json
   "comment": "This is a player, not a club",
   "rating": 4.0
 }
+
+
+### delete own review
+DELETE http://localhost:8000/api/reviews/2/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+
+### test delete review without authentication (should fail)
+DELETE http://localhost:8000/api/reviews/1/
+Content-Type: application/json
+
+
+### test delete non-existent review (should fail)
+DELETE http://localhost:8000/api/reviews/99999/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json

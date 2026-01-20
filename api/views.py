@@ -1372,3 +1372,40 @@ def get_reviews_by_club(request, club_id):
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_review(request, review_id):
+    """
+    DELETE /api/reviews/<review_id>/
+    Allows a user to delete their own review
+    Auth required (Authorization: Bearer <access>)
+    """
+    try:
+        # Get the review
+        try:
+            review = Review.objects.get(id=review_id)
+        except Review.DoesNotExist:
+            return Response({'error': 'Review not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # Check if the user owns this review
+        if review.userid.id != request.user.id:
+            return Response({'error': 'You can only delete your own reviews'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        club_user = review.clubid
+        review.delete()
+
+        # Update club's average rating after deletion
+        avg_rating = Review.objects.filter(clubid=club_user).aggregate(Avg('rating'))['rating__avg']
+        club = club_user.club
+        club.rating_avg = avg_rating or 0.0
+        club.save()
+
+        return Response({'message': 'Review deleted successfully'},
+                        status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

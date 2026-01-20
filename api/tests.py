@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Player, Club, Review
 from decimal import Decimal
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -291,3 +292,107 @@ class ReviewAPITestCase(APITestCase):
         # Check updated club rating (should be average of 4.0 and 5.0)
         self.club_user.club.refresh_from_db()
         self.assertEqual(float(self.club_user.club.rating_avg), 4.5)
+
+    def test_delete_own_review_success(self):
+        """Test deleting own review successfully"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        # Create a review
+        review = Review.objects.create(
+            userid=self.player_user,
+            clubid=self.club_user,
+            comment='Test review',
+            rating=4.0
+        )
+        
+        # Delete the review
+        response = self.client.delete(f'/api/reviews/{review.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('deleted successfully', response.data['message'])
+        
+        # Verify review is deleted
+        self.assertFalse(Review.objects.filter(id=review.id).exists())
+
+    def test_delete_review_without_authentication(self):
+        """Test deleting review without authentication fails"""
+        # Create a review
+        review = Review.objects.create(
+            userid=self.player_user,
+            clubid=self.club_user,
+            comment='Test review',
+            rating=4.0
+        )
+        
+        # Try to delete without authentication
+        response = self.client.delete(f'/api/reviews/{review.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Verify review still exists
+        self.assertTrue(Review.objects.filter(id=review.id).exists())
+
+    def test_delete_other_user_review_forbidden(self):
+        """Test that users cannot delete reviews by other users"""
+        # Create a review by player_user2
+        review = Review.objects.create(
+            userid=self.player_user2,
+            clubid=self.club_user,
+            comment='Another user review',
+            rating=4.0
+        )
+        
+        # Try to delete as player_user
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        response = self.client.delete(f'/api/reviews/{review.id}/')
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('only delete your own', response.data['error'])
+        
+        # Verify review still exists
+        self.assertTrue(Review.objects.filter(id=review.id).exists())
+
+    def test_delete_nonexistent_review(self):
+        """Test deleting a non-existent review"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        response = self.client.delete('/api/reviews/99999/')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_club_rating_updates_after_deletion(self):
+        """Test that club's average rating updates after review deletion"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        
+        # Create first review
+        review1 = Review.objects.create(
+            userid=self.player_user,
+            clubid=self.club_user,
+            comment='First review',
+            rating=4.0
+        )
+        
+        # Create second review
+        review2 = Review.objects.create(
+            userid=self.player_user2,
+            clubid=self.club_user,
+            comment='Second review',
+            rating=5.0
+        )
+        
+        # Update club rating
+        avg_rating = Review.objects.filter(clubid=self.club_user).aggregate(Avg('rating'))['rating__avg']
+        self.club_user.club.rating_avg = avg_rating
+        self.club_user.club.save()
+        
+        # Check initial rating (4.0 + 5.0) / 2 = 4.5
+        self.club_user.club.refresh_from_db()
+        self.assertEqual(float(self.club_user.club.rating_avg), 4.5)
+        
+        # Delete first review
+        response = self.client.delete(f'/api/reviews/{review1.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Check updated rating (should be 5.0 now)
+        self.club_user.club.refresh_from_db()
+        self.assertEqual(float(self.club_user.club.rating_avg), 5.0)
