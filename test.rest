@@ -55,3 +55,95 @@ Content-Type: application/json
   "old_password": "StrongPass123!",
   "new_password": "StrongPass1234!"
 }
+
+
+### create review
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 2,
+  "comment": "Great tennis club! Excellent facilities and friendly staff.",
+  "rating": 4.5
+}
+
+
+### get reviews by user
+GET http://localhost:8000/api/reviews/user/1/
+Content-Type: application/json
+
+
+### get reviews by club
+GET http://localhost:8000/api/reviews/club/2/
+Content-Type: application/json
+
+
+### test validation - rating too high (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 2,
+  "comment": "Test",
+  "rating": 6.0
+}
+
+
+### test validation - negative rating (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 2,
+  "comment": "Test",
+  "rating": -1.0
+}
+
+
+### test validation - missing club_id (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "comment": "Test review",
+  "rating": 4.0
+}
+
+
+### test validation - missing rating (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 2,
+  "comment": "Test review"
+}
+
+
+### test validation - comment too long (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 2,
+  "comment": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur.",
+  "rating": 4.0
+}
+
+
+### test validation - review for non-club user (should fail)
+POST http://localhost:8000/api/reviews/
+Authorization: Bearer PASTE_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "club_id": 1,
+  "comment": "This is a player, not a club",
+  "rating": 4.0
+}

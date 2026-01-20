@@ -6,12 +6,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from .models import Player, Club, Admin, Field, Booking, Reservation
+from .models import Player, Club, Admin, Field, Booking, Reservation, Review
 from django.db import connection
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -1229,5 +1230,145 @@ def delete_reservation(request, reservation_id):
         return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
     except Reservation.DoesNotExist:
         return Response({'error': 'Reservation not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_review(request):
+    """
+    POST { "club_id": <int>, "comment": "...", "rating": <decimal> }
+    Auth required (Authorization: Bearer <access>)
+    """
+    try:
+        club_id = request.data.get('club_id')
+        comment = request.data.get('comment', '')
+        rating = request.data.get('rating')
+
+        if not club_id or rating is None:
+            return Response({'error': 'club_id and rating are required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate club exists and is actually a club
+        try:
+            club_user = User.objects.get(id=club_id)
+            if club_user.role != 'CLUB':
+                return Response({'error': 'The specified user is not a club'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'error': 'Club not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # Validate rating range
+        try:
+            rating = float(rating)
+            if rating < 0 or rating > 5:
+                return Response({'error': 'Rating must be between 0 and 5'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid rating value'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate comment length
+        if len(comment) > 300:
+            return Response({'error': 'Comment cannot exceed 300 characters'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Create review
+        review = Review.objects.create(
+            userid=request.user,
+            clubid=club_user,
+            comment=comment,
+            rating=rating
+        )
+
+        # Update club's average rating
+        avg_rating = Review.objects.filter(clubid=club_user).aggregate(Avg('rating'))['rating__avg']
+        club = club_user.club
+        club.rating_avg = avg_rating or 0.0
+        club.save()
+
+        return Response({
+            'id': review.id,
+            'user_id': review.userid.id,
+            'club_id': review.clubid.id,
+            'comment': review.comment,
+            'rating': float(review.rating),
+            'uploaded_at': review.uploaded_at
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_reviews_by_user(request, user_id):
+    """
+    GET /api/reviews/user/<user_id>/
+    Returns all reviews created by a specific user
+    """
+    try:
+        reviews = Review.objects.filter(userid=user_id).select_related('userid', 'clubid')
+        
+        reviews_data = [{
+            'id': review.id,
+            'user_id': review.userid.id,
+            'user_username': review.userid.username,
+            'club_id': review.clubid.id,
+            'club_name': review.clubid.club.name if hasattr(review.clubid, 'club') else review.clubid.username,
+            'comment': review.comment,
+            'rating': float(review.rating),
+            'uploaded_at': review.uploaded_at
+        } for review in reviews]
+
+        return Response({
+            'count': len(reviews_data),
+            'reviews': reviews_data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_reviews_by_club(request, club_id):
+    """
+    GET /api/reviews/club/<club_id>/
+    Returns all reviews for a specific club
+    """
+    try:
+        # Verify the club exists
+        try:
+            club_user = User.objects.get(id=club_id)
+            if club_user.role != 'CLUB':
+                return Response({'error': 'The specified user is not a club'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'error': 'Club not found'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        reviews = Review.objects.filter(clubid=club_id).select_related('userid', 'clubid')
+        
+        reviews_data = [{
+            'id': review.id,
+            'user_id': review.userid.id,
+            'user_username': review.userid.username,
+            'club_id': review.clubid.id,
+            'club_name': review.clubid.club.name if hasattr(review.clubid, 'club') else review.clubid.username,
+            'comment': review.comment,
+            'rating': float(review.rating),
+            'uploaded_at': review.uploaded_at
+        } for review in reviews]
+
+        # Calculate average rating
+        avg_rating = Review.objects.filter(clubid=club_id).aggregate(Avg('rating'))['rating__avg']
+
+        return Response({
+            'count': len(reviews_data),
+            'average_rating': float(avg_rating) if avg_rating else 0.0,
+            'reviews': reviews_data
+        }, status=status.HTTP_200_OK)
+
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

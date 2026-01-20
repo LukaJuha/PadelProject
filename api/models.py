@@ -175,3 +175,19 @@ class Reservation(models.Model):
     
     def __str__(self):
         return f"{self.player.userid.username} - {self.booking.title}"
+
+
+class Review(models.Model):
+    id = models.AutoField(primary_key=True)
+    userid = models.ForeignKey(User, on_delete=models.CASCADE, db_column='userId', related_name='reviews_created')
+    clubid = models.ForeignKey(User, on_delete=models.CASCADE, db_column='clubId', related_name='reviews_received')
+    comment = models.CharField(max_length=300, db_column='comment')
+    rating = models.DecimalField(max_digits=3, decimal_places=2, db_column='rating')
+    uploaded_at = models.DateTimeField(auto_now_add=True, db_column='uploadedAt')
+
+    class Meta:
+        db_table = 'review'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Review by {self.userid.username} for {self.clubid.username} - {self.rating}/5.00"
