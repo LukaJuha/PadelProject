@@ -71,7 +71,7 @@ function FieldDetail() {
         const data = await res.json();
         // Convert bookings to model instances and calendar events
         const bookingModels = (data.bookings || []).map(b => Booking.fromAPI(b));
-        setBookings(bookingModels);
+        
         const events = bookingModels.map((booking) => {
           const dayOfWeek = booking.dayOfWeek === 0 ? 6 : booking.dayOfWeek - 1;
           
@@ -83,6 +83,7 @@ function FieldDetail() {
             endTime: booking.endTime,
           };
         });
+        setBookings(events);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -233,7 +234,7 @@ function FieldDetail() {
   };
 
   const handleEditBooking = (booking) => {
-    const dayOfWeek = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
+    const dayOfWeek = booking.dayOfWeek;
     setEditingBooking({
       id: booking.id,
       title: booking.title,
@@ -587,7 +588,7 @@ function FieldDetail() {
             <ul>
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-                const dayIndex = booking.daysOfWeek[0];
+                const dayIndex = booking.dayOfWeek;
                 
                 return (
                   <li key={booking.id} style={styles.bookingItem}>

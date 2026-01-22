@@ -1,9 +1,9 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import dayGridPlugin from "@fullcalendar/daygrid";
 import { PayPalButtons } from "@paypal/react-paypal-js";
 import { Field, Booking, Reservation } from "../models";
 
@@ -20,6 +20,8 @@ function PublicFieldView() {
   const [reservations, setReservations] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('IN_PERSON');
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [isCurrentWeek, setIsCurrentWeek] = useState(true);
+  const calendarRef = useRef(null);
 
   const backendURL = (import.meta.env.MODE === 'development') ? 
     import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
@@ -98,6 +100,14 @@ function PublicFieldView() {
     }
   };
 
+  const handleDatesSet = (info) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const viewStart = new Date(info.start);
+    viewStart.setHours(0, 0, 0, 0);
+    setIsCurrentWeek(viewStart.getTime() === today.getTime());
+  };
+
   const handleReserveBooking = (booking) => {
     if (!user) {
       alert("Molim vas prijavite se kako biste rezervirali termin");
@@ -109,6 +119,32 @@ function PublicFieldView() {
       alert("Samo igrači mogu rezervirati termine");
       return;
     }
+
+    setSelectedBooking(booking);
+    setShowReserveForm(true);
+  };
+
+  const handleEventClick = (info) => {
+    const event = info.event;
+    const eventDate = info.event.start;
+    
+    if (!user) {
+      alert("Molim vas prijavite se kako biste rezervirali termin");
+      navigate("/login");
+      return;
+    }
+
+    if (user.role !== 'PLAYER') {
+      alert("Samo igrači mogu rezervirati termine");
+      return;
+    }
+
+    // Create booking object with selected date
+    const booking = {
+      id: event.id,
+      title: event.title,
+      date: eventDate.toISOString().split('T')[0]
+    };
 
     setSelectedBooking(booking);
     setShowReserveForm(true);
@@ -128,6 +164,11 @@ function PublicFieldView() {
 
   const createReservation = async (paymentMethodValue, paypalOrderId = null) => {
     try {
+      if (!selectedBooking || !selectedBooking.date) {
+        alert('Molimo odaberite konkretan datum termina na kalendaru prije rezervacije.');
+        return;
+      }
+
       const res = await fetch(`${backendURL}/fields/${fieldId}/reserve/`, {
         method: "POST",
         headers: {
@@ -136,6 +177,7 @@ function PublicFieldView() {
         },
         body: JSON.stringify({
           booking_id: selectedBooking.id,
+          date: selectedBooking.date,
           payment_method: paymentMethodValue,
           paypal_order_id: paypalOrderId,
         }),
@@ -188,12 +230,28 @@ function PublicFieldView() {
       <div style={styles.section}>
         <h2>Tjedni Raspored</h2>
         <div style={styles.calendarContainer}>
+          {isCurrentWeek && (
+            <style>{`
+              .fc .fc-button-group > :first-child {
+                opacity: 0.5;
+                cursor: not-allowed !important;
+                pointer-events: none;
+              }
+            `}</style>
+          )}
           <FullCalendar
+            ref={calendarRef}
             locale="hr"
-            plugins={[timeGridPlugin, interactionPlugin]}
+            plugins={[timeGridPlugin, dayGridPlugin]}
             initialView="timeGridWeek"
-            headerToolbar={false}
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: ''
+            }}
+            datesSet={handleDatesSet}
             events={bookings}
+            eventClick={handleEventClick}
             slotLabelInterval="01:00"
             slotLabelFormat={{
               meridiem: false,

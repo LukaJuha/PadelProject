@@ -1148,11 +1148,12 @@ def reserve_booking(request, field_id):
     
     try:
         booking_id = request.data.get('booking_id')
+        date = request.data.get('date')
         payment_method = request.data.get('payment_method', 'IN_PERSON')
         paypal_order_id = request.data.get('paypal_order_id')
         
-        if not booking_id:
-            return Response({'error': 'booking_id is required'}, 
+        if not booking_id or not date:
+            return Response({'error': 'booking_id and date are required'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
         # Validate payment method
@@ -1169,9 +1170,9 @@ def reserve_booking(request, field_id):
         player = Player.objects.get(userid=user)
         booking = Booking.objects.get(id=booking_id, field_id=field_id)
         
-        # Check if already reserved
-        if Reservation.objects.filter(booking=booking, player=player).exists():
-            return Response({'error': 'You have already reserved this booking'}, 
+        # Check if already reserved for this specific date
+        if Reservation.objects.filter(booking=booking, player=player, date=date).exists():
+            return Response({'error': 'You have already reserved this booking for this date'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
         # Set payment status based on payment method
@@ -1180,6 +1181,7 @@ def reserve_booking(request, field_id):
         reservation = Reservation.objects.create(
             booking=booking,
             player=player,
+            date=date,
             payment_method=payment_method,
             payment_status=payment_status
         )
@@ -1190,6 +1192,7 @@ def reserve_booking(request, field_id):
                 'id': reservation.id,
                 'booking_id': reservation.booking.id,
                 'booking_title': reservation.booking.title,
+                'date': reservation.date,
                 'payment_method': reservation.payment_method,
                 'payment_status': reservation.payment_status,
                 'paypal_order_id': paypal_order_id if payment_method == 'PAYPAL' else None,

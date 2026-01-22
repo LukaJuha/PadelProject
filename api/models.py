@@ -178,16 +178,17 @@ class Reservation(models.Model):
     id = models.AutoField(primary_key=True)
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='reservations')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='reservations')
+    date = models.DateField(db_column='date')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='IN_PERSON', db_column='paymentMethod')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='PENDING', db_column='paymentStatus')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         db_table = 'reservation'
-        unique_together = ('booking', 'player')
+        unique_together = ('booking', 'player', 'date')
     
     def __str__(self):
-        return f"{self.player.userid.username} - {self.booking.title}"
+        return f"{self.player.userid.username} - {self.booking.title} on {self.date}"
 
 
 class Review(models.Model):
