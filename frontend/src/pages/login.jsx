@@ -76,7 +76,7 @@ function Login() {
       const data = await res.json();
 
       if (res.ok) {
-        setUser({...user, accessToken: data.access, refreshToken: data.refresh, role: data.user.role, authenticated: true});
+        setUser({...user, accessToken: data.access, refreshToken: data.refresh, userId: data.user.id, role: data.user.role, authenticated: true});
                
         navigate("/");
       } else {

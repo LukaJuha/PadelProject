@@ -4,6 +4,7 @@ import { SearchFilter } from "../models/SearchFilter";
 import SearchFilters from "../components/searchFilters";
 import { Club, Field } from "../models";
 
+
 function Search() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -83,16 +84,28 @@ function Search() {
     <div>
       {/* Search Bar */}
       <form onSubmit={handleSearch} style={styles.searchBarContainer}>
-        <input
-          type="text"
-          placeholder="Pretražite klubove i terene"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={styles.searchInput}
-        />
-        <div style={styles.filterIconContainer} onClick={toggleFilters}>
-          <img src="/filter_icon.png" alt="Filtri" style={styles.filterIcon} />
+        <div style={styles.searchInputWrapper}>
+          <input
+            type="text"
+            placeholder="Pretražite klubove i terene"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={styles.searchInput}
+          />
+          <button
+            type="submit"
+            style={styles.searchButton}
+          >
+            <img src="/magnifier.png" alt="Search" style={styles.searchButtonIcon} />
+          </button>
         </div>
+        <button
+          type="button"
+          style={styles.filterButton}
+          onClick={toggleFilters}
+        >
+          <img src="/settings.png" alt="Filtri" style={styles.filterIcon} />
+        </button>
       </form>
 
       {/* Filter Modal */}
@@ -116,6 +129,7 @@ function Search() {
                 <th style={cellStyle}>Adresa</th>
                 <th style={cellStyle}>Ocjena</th>
                 <th style={cellStyle}>Broj terena</th>
+                <th style={cellStyle}>Recenzije</th>
               </tr>
             </thead>
             <tbody>
@@ -133,6 +147,14 @@ function Search() {
                   <td style={cellStyle}>{club.address}</td>
                   <td style={cellStyle}>{club.ratingAvg ?? '-'}</td>
                   <td style={cellStyle}>{club.fields.length || 0}</td>
+                  <td style={cellStyle}>
+                    <button
+                      onClick={() => navigate(`/reviews/${club.id}`)}
+                      style={{ padding: '6px 10px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <img src="/star.png" alt="star" style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -174,6 +196,11 @@ function Search() {
                     >
                       {field.clubName}
                     </a>
+                    <div style={{ marginTop: 6 }}>
+                      <button onClick={() => navigate(`/reviews/${field.clubId}`)} style={{ padding: '4px 8px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <img src="/star.png" alt="star" style={{ width: '14px', height: '14px' }} />
+                      </button>
+                    </div>
                   </td>
                   <td style={cellStyle}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
                   <td style={cellStyle}>{Field.SIZES_HR[field.size] || field.size}</td>
@@ -197,20 +224,45 @@ const styles = {
     marginTop: "20px",
     width: "100%",
     maxWidth: "700px",
+    gap: "8px",
+  },
+  searchInputWrapper: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid #ccc",
+    borderRadius: "20px",
+    paddingRight: "8px",
+    backgroundColor: "#fff",
   },
   searchInput: {
     flex: 1,
     margin: 0,
-    maxWidth: "100%",
     padding: "10px 15px",
-    borderRadius: "20px",
-    border: "1px solid #ccc",
+    border: "none",
     outline: "none",
     fontSize: "16px",
+    borderRadius: "20px",
+    backgroundColor: "transparent",
   },
-  filterIconContainer: {
+  searchButton: {
     flex: 0,
-    marginLeft: "10px",
+    width: "30px",
+    height: "30px",
+    border: "none",
+    backgroundColor: "transparent",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    padding: 0,
+  },
+  searchButtonIcon: {
+    width: "20px",
+    height: "20px",
+  },
+  filterButton: {
+    flex: 0,
     width: "40px",
     height: "40px",
     borderRadius: "50%",
@@ -220,10 +272,11 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     cursor: "pointer",
+    padding: 0,
   },
   filterIcon: {
-    width: "40px",
-    height: "40px",
+    width: "20px",
+    height: "20px",
   },
   modalOverlay: {
     position: "fixed",

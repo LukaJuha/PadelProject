@@ -44,6 +44,7 @@ export default function GoogleLoginButton({ user, setUser }) {
                 setGlobalUser({
                   accessToken: loginData.access,
                   refreshToken: loginData.refresh,
+                  userId: loginData.user.id,
                   email: loginData.user.email,
                   role: loginData.user.role,
                   authenticated: true,

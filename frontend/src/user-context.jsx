@@ -4,6 +4,7 @@ const initialUserState = {
   email: '',
   password: '',
   role: '',
+  userId: null,
   authenticated: false,
   accessToken: '',
   refreshToken: '',

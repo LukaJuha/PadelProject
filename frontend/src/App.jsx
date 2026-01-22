@@ -8,6 +8,8 @@ import Management from "./pages/management.jsx";
 import FieldDetail from "./pages/fieldDetail.jsx";
 import ClubProfile from "./pages/clubProfile.jsx";
 import PublicFieldView from "./pages/publicFieldView.jsx";
+import Reviews from "./pages/reviews.jsx";
+import UserReviews from "./pages/userReviews.jsx";
 import Reservations from "./pages/reservations.jsx";
 import Administration from "./pages/administration.jsx";
 import { UserProvider } from "./user-context.jsx";
@@ -53,6 +55,8 @@ function App() {
               }
             />
             <Route path="/club/:clubId" element={<ClubProfile />} />
+            <Route path="/reviews/:clubId" element={<Reviews />} />
+            <Route path="/reviews/user/:userId" element={<UserReviews />} />
             <Route path="/club/:clubId/field/:fieldId" element={<PublicFieldView />} />
             <Route
               path="/reservations"

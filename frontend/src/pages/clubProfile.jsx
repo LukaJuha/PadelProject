@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import { Club, Field } from "../models";
 
+
 function ClubProfile() {
   const [user] = useContext(UserContext);
   const { clubId } = useParams();
@@ -61,6 +62,13 @@ function ClubProfile() {
             {club.email || "Email nije dostupan"}
           </p>
         </div>
+        <button
+          style={styles.reviewsButton}
+          onClick={() => navigate(`/reviews/${clubId}`)}
+        >
+          <img src="/star.png" alt="star" style={{ width: '18px', height: '18px', marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} />
+          Vidi Recenzije
+        </button>
       </div>
 
       <div style={styles.section}>
@@ -161,6 +169,15 @@ const styles = {
   actionButton: {
     padding: "5px 10px",
     backgroundColor: "#17a2b8",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  reviewsButton: {
+    padding: "8px 16px",
+    backgroundColor: "#28a745",
     color: "white",
     border: "none",
     borderRadius: "4px",

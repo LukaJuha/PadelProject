@@ -100,6 +100,7 @@ def login(request):
             'access': str(refresh.access_token),
             'refresh': str(refresh),
             'user': {
+                'id': user.id,
                 'email': user.email,
                 'role': user.role
             }
@@ -233,6 +234,7 @@ def google_login(request):
             'access': access,
             'refresh': str(refresh),
             'user': {
+                'id': user.id,
                 'email': user.email,
                 'role': user.role,
             }

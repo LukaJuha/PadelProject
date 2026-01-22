@@ -291,6 +291,31 @@ function Profile() {
                 </>
             )}
 
+            {user.role.toUpperCase() === "PLAYER" && (
+                <div style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
+                    <h3>Moje Recenzije</h3>
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/reviews/user/${user.userId}`)
+                    }
+                        style={{
+                            padding: "8px 16px",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                        }}
+                    >
+                        <img src="/star.png" alt="star" style={{ width: '16px', height: '16px' }} />                       
+                    </button>
+                </div>
+            )}
+
             {!editing && (
                 <div className="profileButtonContainer">
                     <button onClick={startEditing}>Uredi profil</button>
