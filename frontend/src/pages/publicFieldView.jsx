@@ -4,6 +4,7 @@ import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { Field, Booking, Reservation } from "../models";
 
 function PublicFieldView() {
   const [user] = useContext(UserContext);
@@ -34,7 +35,7 @@ function PublicFieldView() {
 
       if (res.ok) {
         const data = await res.json();
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
       } else {
         alert("Greška pri učitavanju terena");
         navigate("/");
@@ -53,15 +54,16 @@ function PublicFieldView() {
 
       if (res.ok) {
         const data = await res.json();
-        const events = (data.bookings || []).map((booking) => {
-          const dayOfWeek = booking.day_of_week === 0 ? 6 : booking.day_of_week - 1;
+        const bookingModels = (data.bookings || []).map(b => Booking.fromAPI(b));
+        const events = bookingModels.map((booking) => {
+          const dayOfWeek = booking.dayOfWeek === 0 ? 6 : booking.dayOfWeek - 1;
           
           return {
             id: booking.id,
             title: booking.title,
             daysOfWeek: [dayOfWeek],
-            startTime: booking.start_time,
-            endTime: booking.end_time,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
             backgroundColor: "#28a745",
             borderColor: "#1e7e34",
           };

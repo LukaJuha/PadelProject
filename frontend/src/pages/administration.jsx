@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { User, Player, Club, Admin, Field, Booking, Reservation } from "../models";
 
 export default function Administration() {
   const [user] = useContext(UserContext);
@@ -215,7 +216,7 @@ export default function Administration() {
 
       if (response.ok) {
         const data = await response.json();
-        setPlayerReservations(data.reservations || []);
+        setPlayerReservations((data.reservations || []).map(r => Reservation.fromAPI(r)));
       }
     } catch (err) {
       console.error("Error fetching reservations:", err);
@@ -263,7 +264,7 @@ export default function Administration() {
 
       if (response.ok) {
         const data = await response.json();
-        setClubFields(data.fields || []);
+        setClubFields((data.fields || []).map(f => Field.fromAPI(f)));
       }
     } catch (err) {
       console.error("Error fetching fields:", err);
@@ -284,7 +285,7 @@ export default function Administration() {
 
       if (response.ok) {
         const data = await response.json();
-        setFieldBookings(data.bookings || []);
+        setFieldBookings((data.bookings || []).map(b => Booking.fromAPI(b)));
       }
     } catch (err) {
       console.error("Error fetching bookings:", err);
@@ -356,10 +357,10 @@ export default function Administration() {
     setEditingField(field);
     setFieldFormData({
       name: field.name,
-      floor_type: field.floorType || field.floor_type,
+      floor_type: field.floorType,
       size: field.size,
       location: field.location,
-      ceiling_height: field.ceilingHeight || field.ceiling_height,
+      ceiling_height: field.ceilingHeight,
       lighting: field.lighting
     });
   };
@@ -383,7 +384,7 @@ export default function Administration() {
         fetchClubFields(selectedUser.id);
         // Update selectedField with new data
         const data = await response.json();
-        setSelectedField(data.field);
+        setSelectedField(Field.fromAPI(data.field));
       } else {
         const data = await response.json();
         setError(data.error || 'Greška pri ažuriranju terena');
@@ -398,9 +399,9 @@ export default function Administration() {
     setEditingBooking(booking);
     setBookingFormData({
       title: booking.title,
-      day_of_week: booking.day_of_week,
-      start_time: booking.start_time,
-      end_time: booking.end_time
+      day_of_week: booking.dayOfWeek,
+      start_time: booking.startTime,
+      end_time: booking.endTime
     });
   };
 
@@ -417,6 +418,7 @@ export default function Administration() {
       });
 
       if (response.ok) {
+        const data = await response.json();
         setSuccessMessage('Booking uspješno ažuriran!');
         setEditingBooking(null);
         // Refresh the bookings list
@@ -961,7 +963,7 @@ export default function Administration() {
               <option value="">Svi</option>
               <option value="PLAYER">Igrač</option>
               <option value="CLUB">Klub</option>
-              <option value="ADMIN">Admin</option>
+              <option value="ADMIN">Administrator</option>
             </select>
           </div>
           <button type="submit" style={styles.searchButton}>
@@ -980,7 +982,7 @@ export default function Administration() {
               <div style={styles.userInfo}>
                 <h3>{getDisplayName(userData)}</h3>
                 <p style={styles.userMeta}>
-                  <strong>Tip:</strong> {userData.role}
+                  <strong>Tip:</strong> {User.ROLES_HR[userData.role]}
                 </p>
                 <p style={styles.userMeta}>
                   <strong>Email:</strong> {userData.email}

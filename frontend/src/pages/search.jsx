@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SearchFilter } from "../components/searchFilter";
+import { SearchFilter } from "../models/SearchFilter";
 import SearchFilters from "../components/searchFilters";
+import { Club, Field } from "../models";
 
 function Search() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,8 +58,10 @@ function Search() {
       const res = await fetch(`${backendURL}/search/?${params.toString()}`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
-      // expected shape: { clubs: [...], fields: [...] }
-      setResults({ clubs: data.clubs || [], fields: data.fields || [] });
+      // Convert API data to model instances
+      const clubs = (data.clubs || []).map(c => Club.fromAPI(c));
+      const fields = (data.fields || []).map(f => Field.fromAPI(f));
+      setResults({ clubs, fields });
     } catch (err) {
       setError(err.message || "Failed to fetch results");
       setResults({ clubs: [], fields: [] });
@@ -109,27 +112,27 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={cellStyle}>Name</th>
-                <th style={cellStyle}>Address</th>
-                <th style={cellStyle}>Rating</th>
-                <th style={cellStyle}>Matching Fields</th>
+                <th style={cellStyle}>Naziv</th>
+                <th style={cellStyle}>Adresa</th>
+                <th style={cellStyle}>Ocjena</th>
+                <th style={cellStyle}>Broj terena</th>
               </tr>
             </thead>
             <tbody>
-              {results.clubs.map((c) => (
-                <tr key={c.id}>
+              {results.clubs.map((club) => (
+                <tr key={club.id}>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${c.id}`} 
+                      href={`/club/${club.id}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${c.id}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${club.id}`); }}
                     >
-                      {c.name}
+                      {club.name}
                     </a>
                   </td>
-                  <td style={cellStyle}>{c.address}</td>
-                  <td style={cellStyle}>{c.ratingAvg ?? '-'}</td>
-                  <td style={cellStyle}>{(c.fields && c.fields.length) || 0}</td>
+                  <td style={cellStyle}>{club.address}</td>
+                  <td style={cellStyle}>{club.ratingAvg ?? '-'}</td>
+                  <td style={cellStyle}>{club.fields.length || 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -143,39 +146,39 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={cellStyle}>Name</th>
-                <th style={cellStyle}>Club</th>
-                <th style={cellStyle}>Floor Type</th>
-                <th style={cellStyle}>Size</th>
-                <th style={cellStyle}>Location</th>
-                <th style={cellStyle}>Lighting</th>
+                <th style={cellStyle}>Naziv</th>
+                <th style={cellStyle}>Klub</th>
+                <th style={cellStyle}>Podloga</th>
+                <th style={cellStyle}>Veličina</th>
+                <th style={cellStyle}>Lokacija</th>
+                <th style={cellStyle}>Osvjetljenje</th>
               </tr>
             </thead>
             <tbody>
-              {results.fields.map((f) => (
-                <tr key={f.id}>
+              {results.fields.map((field) => (
+                <tr key={field.id}>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${f.clubId}/field/${f.id}`} 
+                      href={`/club/${field.clubId}/field/${field.id}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${f.clubId}/field/${f.id}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${field.clubId}/field/${field.id}`); }}
                     >
-                      {f.name}
+                      {field.name}
                     </a>
                   </td>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${f.clubId}`} 
+                      href={`/club/${field.clubId}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${f.clubId}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${field.clubId}`); }}
                     >
-                      {f.clubName}
+                      {field.clubName}
                     </a>
                   </td>
-                  <td style={cellStyle}>{f.floorType}</td>
-                  <td style={cellStyle}>{f.size}</td>
-                  <td style={cellStyle}>{f.location}</td>
-                  <td style={cellStyle}>{f.lighting ? 'Yes' : 'No'}</td>
+                  <td style={cellStyle}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
+                  <td style={cellStyle}>{Field.SIZES_HR[field.size] || field.size}</td>
+                  <td style={cellStyle}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
+                  <td style={cellStyle}>{Field.LIGHTING_HR[field.lighting]}</td>
                 </tr>
               ))}
             </tbody>

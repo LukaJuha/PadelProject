@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
+import { Player, Club, Admin } from "../models";
 import "./styles/profile.css";
 
 function Profile() {
@@ -38,38 +39,41 @@ function Profile() {
         const data = await res.json();
 
         if (user.role.toUpperCase() === "PLAYER") {
+            const playerModel = Player.fromAPI(data);
             const profileData = {
                 email: data.email,
                 username: data.username || "",
-                firstName: data.first_name || "",
-                lastName: data.last_name || "",
-                phoneNumber: data.phone_number || "",
-                skillLevel: data.skill_level || "Beginner",
-                preferredDay: data.preferred_dow || 1,
-                preferredTime: data.preferred_time || "12:00",
+                firstName: playerModel.firstName,
+                lastName: playerModel.lastName,
+                phoneNumber: playerModel.phoneNumber,
+                skillLevel: playerModel.skillLevel || "BEGINNER",
+                preferredDay: playerModel.preferredDow || 1,
+                preferredTime: playerModel.preferredTime || "12:00",
             };
 
             setUserData(profileData);
             oldData.current = { ...profileData };
         } else if (user.role.toUpperCase() === "CLUB") {
+            const clubModel = Club.fromAPI(data);
             const profileData = {
                 email: data.email,
                 username: data.username || "",
-                name: data.name || "",
-                address: data.address || "",
-                phoneNumber: data.contact_number || "",
-                description: data.description || "",
-                workingHours: data.working_hours || "",
+                name: clubModel.name,
+                address: clubModel.address,
+                phoneNumber: clubModel.contactNumber,
+                description: clubModel.description,
+                workingHours: clubModel.workingHours,
             };
 
             setUserData(profileData);
             oldData.current = { ...profileData };
         } else if (user.role.toUpperCase() === "ADMIN") {
+            const adminModel = Admin.fromAPI(data);
             const profileData = {
                 email: data.email,
                 username: data.username || "",
-                firstName: data.first_name || "",
-                lastName: data.last_name || "",
+                firstName: adminModel.firstName,
+                lastName: adminModel.lastName,
             };
 
             setUserData(profileData);
@@ -117,14 +121,17 @@ function Profile() {
                     working_hours: userData.workingHours,
                 };
             } else if (user.role.toUpperCase() === "ADMIN") {
-                body = {
-                    username: userData.username,
-                    first_name: userData.firstName,
-                    last_name: userData.lastName,
-                };
-            }
+        const adminModel = new Admin({
+          firstName: userData.firstName,
+          lastName: userData.lastName
+        });
+        body = {
+          username: userData.username,
+          ...adminModel.toAPI()
+        };
+      }
             
-            const backendURL = (import.meta.env.MODE === 'development') ? import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = (import.meta.env.MODE === 'development') ? import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
             const res = await fetch(backendURL + "/auth/user/update/", {
               method: "PATCH",
               headers: {
@@ -159,7 +166,7 @@ function Profile() {
         <form className="profileForm">
             <div className="profileUserContainer">
                 <span>
-                    <label>Username:</label>
+                    <label>Korisničko ime:</label>
                     <input type="text" value={userData?.username || ""} required disabled={!editing} className="profileTextInput" 
                     onChange={(e) => setUserData({...userData, username: e.target.value})} />
                 </span>

@@ -158,7 +158,7 @@ function Register() {
       {(!localUser?.showRoles) && (
         <div>
           <form className="registerForm" onSubmit={register}>
-            <label>Username:</label>
+            <label>Korisničko ime:</label>
             <input type="text" required className="registerInput" value={localUser?.username}
             onChange={(e) => setLocalUser({...localUser, username: e.target.value})} />
 

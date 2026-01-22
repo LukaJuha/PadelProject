@@ -1,4 +1,5 @@
-import { SearchFilter } from "./searchFilter";
+import { SearchFilter } from "../models/SearchFilter";
+import { Field } from '../models';
 
 export default function SearchFilters({ filters, setFilters, onClose }) {
   const updateFilter = (key, value) => {
@@ -51,10 +52,20 @@ export default function SearchFilters({ filters, setFilters, onClose }) {
           </div>
           <div>
             <p>Tip podloge</p>
-            <input type="checkbox" id="filterFieldTypeConcrete" name="filterFieldType" value="CONCRETE" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('CONCRETE')} checked={filters.fieldType.includes('CONCRETE')} />
-            <label htmlFor="filterFieldTypeConcrete">Beton</label><br/>
-            <input type="checkbox" id="filterFieldTypeGrass" name="filterFieldType" value="GRASS" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('GRASS')} checked={filters.fieldType.includes('GRASS')} />
-            <label htmlFor="filterFieldTypeGrass">Trava</label>
+            {Object.entries(Field.FLOOR_TYPES).map(([key, value]) => (
+              <div key={value}>
+                <input 
+                  type="checkbox" 
+                  id={`filterFieldType${key}`} 
+                  name="filterFieldType" 
+                  value={value} 
+                  style={styles.filterRadioBtn} 
+                  onChange={() => toggleFieldType(value)} 
+                  checked={filters.fieldType.includes(value)} 
+                />
+                <label htmlFor={`filterFieldType${key}`}>{Field.FLOOR_TYPES_HR[value]}</label>
+              </div>
+            ))}
           </div>
           <div>
             <p>Osvjetljenje</p>

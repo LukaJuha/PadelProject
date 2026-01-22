@@ -4,6 +4,7 @@ import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { Field, Booking } from "../models";
 
 function FieldDetail() {
   const [user] = useContext(UserContext);
@@ -44,7 +45,7 @@ function FieldDetail() {
 
       if (res.ok) {
         const data = await res.json();
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
       } else {
         alert("Greška pri učitavanju terena");
         navigate("/management");
@@ -68,20 +69,20 @@ function FieldDetail() {
 
       if (res.ok) {
         const data = await res.json();
-        // Convert bookings to calendar events
-        const events = (data.bookings || []).map((booking) => {
-          const daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
-          const dayOfWeek = booking.day_of_week === 0 ? 6 : booking.day_of_week - 1; // Convert DB format to FullCalendar format
+        // Convert bookings to model instances and calendar events
+        const bookingModels = (data.bookings || []).map(b => Booking.fromAPI(b));
+        setBookings(bookingModels);
+        const events = bookingModels.map((booking) => {
+          const dayOfWeek = booking.dayOfWeek === 0 ? 6 : booking.dayOfWeek - 1;
           
           return {
             id: booking.id,
             title: booking.title,
             daysOfWeek: [dayOfWeek],
-            startTime: booking.start_time,
-            endTime: booking.end_time,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
           };
         });
-        setBookings(events);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
@@ -91,6 +92,13 @@ function FieldDetail() {
   const handleAddBooking = async (e) => {
     e.preventDefault();
 
+    const bookingModel = new Booking({
+      title: newBooking.title,
+      dayOfWeek: parseInt(newBooking.dayOfWeek),
+      startTime: newBooking.startTime,
+      endTime: newBooking.endTime
+    });
+
     try {
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/create/`, {
         method: "POST",
@@ -98,12 +106,7 @@ function FieldDetail() {
           "Authorization": `Bearer ${user?.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          title: newBooking.title,
-          day_of_week: newBooking.dayOfWeek,
-          start_time: newBooking.startTime,
-          end_time: newBooking.endTime,
-        }),
+        body: JSON.stringify(bookingModel.toAPI()),
       });
 
       if (res.ok) {
@@ -156,10 +159,10 @@ function FieldDetail() {
     setEditingField({
       id: field.id,
       name: field.name,
-      floorType: field.floor_type || field.floorType,
+      floorType: field.floorType,
       size: field.size,
       location: field.location,
-      ceilingHeight: field.ceiling_height || field.ceilingHeight || "",
+      ceilingHeight: field.ceilingHeight || "",
       lighting: field.lighting,
     });
     setShowEditField(true);
@@ -168,29 +171,29 @@ function FieldDetail() {
   const handleUpdateField = async (e) => {
     e.preventDefault();
 
-    try {
-      const body = {
-        name: editingField.name,
-        floor_type: editingField.floorType,
-        size: editingField.size,
-        location: editingField.location,
-        ceiling_height: editingField.ceilingHeight ? parseInt(editingField.ceilingHeight) : null,
-        lighting: editingField.lighting,
-      };
+    const fieldModel = new Field({
+      name: editingField.name,
+      floorType: editingField.floorType,
+      size: editingField.size,
+      location: editingField.location,
+      ceilingHeight: editingField.ceilingHeight ? parseInt(editingField.ceilingHeight) : null,
+      lighting: editingField.lighting
+    });
 
+    try {
       const res = await fetch(`${backendURL}/fields/${editingField.id}/update/`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${user?.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(fieldModel.toAPI()),
       });
 
       if (res.ok) {
         const data = await res.json();
         alert("Teren uspješno ažuriran!");
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
         setShowEditField(false);
         setEditingField(null);
       } else {
@@ -244,6 +247,13 @@ function FieldDetail() {
   const handleUpdateBooking = async (e) => {
     e.preventDefault();
 
+    const bookingModel = new Booking({
+      title: editingBooking.title,
+      dayOfWeek: parseInt(editingBooking.dayOfWeek),
+      startTime: editingBooking.startTime,
+      endTime: editingBooking.endTime
+    });
+
     try {
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/${editingBooking.id}/`, {
         method: "PUT",
@@ -251,12 +261,7 @@ function FieldDetail() {
           "Authorization": `Bearer ${user?.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          title: editingBooking.title,
-          day_of_week: editingBooking.dayOfWeek,
-          start_time: editingBooking.startTime,
-          end_time: editingBooking.endTime,
-        }),
+        body: JSON.stringify(bookingModel.toAPI()),
       });
 
       if (res.ok) {

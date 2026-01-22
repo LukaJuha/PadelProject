@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SearchFilter } from "../components/searchFilter";
+import { SearchFilter } from '../models/SearchFilter';
 import SearchFilters from "../components/searchFilters";
 
 function Home() {

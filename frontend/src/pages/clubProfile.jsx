@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
+import { Club, Field } from "../models";
 
 function ClubProfile() {
   const [user] = useContext(UserContext);
@@ -29,8 +30,8 @@ function ClubProfile() {
 
       if (res.ok) {
         const data = await res.json();
-        setClub(data.club);
-        setFields(data.fields || []);
+        setClub(Club.fromAPI(data.club));
+        setFields((data.fields || []).map(f => Field.fromAPI(f)));
       } else {
         alert("Greška pri učitavanju kluba");
         navigate("/");
@@ -90,10 +91,10 @@ function ClubProfile() {
               {fields.map((field) => (
                 <tr key={field.id}>
                   <td style={styles.td}>{field.name}</td>
-                  <td style={styles.td}>{field.floor_type || field.floorType}</td>
-                  <td style={styles.td}>{field.size}</td>
-                  <td style={styles.td}>{field.location}</td>
-                  <td style={styles.td}>{field.lighting ? 'Da' : 'Ne'}</td>
+                  <td style={styles.td}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
+                  <td style={styles.td}>{Field.SIZES_HR[field.size] || field.size}</td>
+                  <td style={styles.td}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
+                  <td style={styles.td}>{Field.LIGHTING_HR[field.lighting]}</td>
                   <td style={styles.td}>
                     <button
                       style={styles.actionButton}
