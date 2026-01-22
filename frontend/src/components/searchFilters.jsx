@@ -29,6 +29,16 @@ export default function SearchFilters({ filters, setFilters, onClose }) {
           <label htmlFor="filterClub">Klub</label><br/>
           <input type="radio" id="filterField" name="filterSearchType" value="FIELD" style={styles.filterRadioBtn} onChange={(e)=> updateFilter('searchType', e.target.value)} checked={filters.searchType === 'FIELD'} />
           <label htmlFor="filterField">Teren</label>
+          <div style={{ marginTop: '8px' }}>
+            <input
+              type="checkbox"
+              id="includeAllClubs"
+              style={styles.filterRadioBtn}
+              checked={filters.includeAllClubs}
+              onChange={(e) => updateFilter('includeAllClubs', e.target.checked)}
+            />
+            <label htmlFor="includeAllClubs">Prikaži klubove bez terena</label>
+          </div>
         </div>
         <div>
           <p>Teren</p>

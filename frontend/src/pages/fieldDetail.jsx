@@ -293,7 +293,7 @@ function FieldDetail() {
         <div>
           <h1>{field.name}</h1>
           <p style={styles.subtitle}>
-            {field.floor_type || field.floorType} • {field.size} • {field.location}
+            {Field.FLOOR_TYPES_HR[field.floorType]} • {Field.SIZES_HR[field.size]} • {Field.LOCATIONS_HR[field.location]}
           </p>
         </div>
         <div>
@@ -411,12 +411,12 @@ function FieldDetail() {
         <h2>Tjedni Raspored</h2>
         <div style={styles.calendarContainer}>
           <FullCalendar
+            locale="hr"
             plugins={[timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             headerToolbar={false}
             events={bookings}
             slotLabelInterval="01:00"
-            hour12={false}
             slotLabelFormat={{
               meridiem: false,
               hour: "2-digit",
@@ -587,7 +587,7 @@ function FieldDetail() {
             <ul>
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-                const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
+                const dayIndex = booking.daysOfWeek[0];
                 
                 return (
                   <li key={booking.id} style={styles.bookingItem}>

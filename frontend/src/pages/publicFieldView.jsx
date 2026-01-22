@@ -4,6 +4,7 @@ import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { PayPalButtons } from "@paypal/react-paypal-js";
 import { Field, Booking, Reservation } from "../models";
 
 function PublicFieldView() {
@@ -17,6 +18,8 @@ function PublicFieldView() {
   const [showReserveForm, setShowReserveForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('IN_PERSON');
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const backendURL = (import.meta.env.MODE === 'development') ? 
     import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
@@ -114,6 +117,16 @@ function PublicFieldView() {
   const handleSubmitReservation = async (e) => {
     e.preventDefault();
 
+    // For PayPal payment, the PayPal button will handle the submission
+    if (paymentMethod === 'PAYPAL') {
+      return;
+    }
+
+    // For IN_PERSON payment, proceed with normal reservation
+    await createReservation('IN_PERSON');
+  };
+
+  const createReservation = async (paymentMethodValue, paypalOrderId = null) => {
     try {
       const res = await fetch(`${backendURL}/fields/${fieldId}/reserve/`, {
         method: "POST",
@@ -123,6 +136,8 @@ function PublicFieldView() {
         },
         body: JSON.stringify({
           booking_id: selectedBooking.id,
+          payment_method: paymentMethodValue,
+          paypal_order_id: paypalOrderId,
         }),
       });
 
@@ -130,14 +145,18 @@ function PublicFieldView() {
         alert("Termin uspješno rezerviran!");
         setShowReserveForm(false);
         setSelectedBooking(null);
+        setPaymentMethod('IN_PERSON');
+        setProcessingPayment(false);
         fetchReservations();
       } else {
         const data = await res.json();
         alert(data.error || "Greška pri rezervaciji termina");
+        setProcessingPayment(false);
       }
     } catch (error) {
       console.error("Error reserving booking:", error);
       alert("Greška pri rezervaciji termina");
+      setProcessingPayment(false);
     }
   };
 
@@ -155,7 +174,7 @@ function PublicFieldView() {
         <div>
           <h1>{field.name}</h1>
           <p style={styles.subtitle}>
-            {field.floor_type || field.floorType} • {field.size} • {field.location}
+            {Field.FLOOR_TYPES_HR[field.floorType]} • {Field.SIZES_HR[field.size]} • {Field.LOCATIONS_HR[field.location]}
           </p>
         </div>
         <button 
@@ -170,6 +189,7 @@ function PublicFieldView() {
         <h2>Tjedni Raspored</h2>
         <div style={styles.calendarContainer}>
           <FullCalendar
+            locale="hr"
             plugins={[timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             headerToolbar={false}
@@ -244,18 +264,97 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="submit" style={styles.submitButton}>
-                  Potvrdi Rezervaciju
-                </button>
-                <button 
-                  type="button"
-                  style={{ ...styles.button, backgroundColor: '#6c757d' }}
-                  onClick={() => setShowReserveForm(false)}
-                >
-                  Odustani
-                </button>
+              
+              <div style={{ marginBottom: '20px', textAlign: 'left' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                  Način plaćanja:
+                </label>
+                <div style={{ marginBottom: '8px' }}>
+                  <input
+                    type="radio"
+                    id="payInPerson"
+                    name="paymentMethod"
+                    value="IN_PERSON"
+                    checked={paymentMethod === 'IN_PERSON'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '8px' }}
+                    disabled={processingPayment}
+                  />
+                  <label htmlFor="payInPerson">Platiti osobno u klubu</label>
+                </div>
+                <div>
+                  <input
+                    type="radio"
+                    id="payPaypal"
+                    name="paymentMethod"
+                    value="PAYPAL"
+                    checked={paymentMethod === 'PAYPAL'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '8px' }}
+                    disabled={processingPayment}
+                  />
+                  <label htmlFor="payPaypal">Platiti putem PayPal-a</label>
+                </div>
               </div>
+
+              {paymentMethod === 'PAYPAL' ? (
+                <div style={{ marginBottom: '15px' }}>
+                  {processingPayment && (
+                    <p style={{ textAlign: 'center', color: '#666', marginBottom: '10px' }}>
+                      Procesiranje plaćanja...
+                    </p>
+                  )}
+                  <PayPalButtons
+                    style={{ layout: 'vertical' }}
+                    createOrder={(data, actions) => {
+                      setProcessingPayment(true);
+                      return actions.order.create({
+                        purchase_units: [{
+                          amount: {
+                            value: '10.00', // You can make this dynamic based on booking price
+                            currency_code: 'EUR'
+                          },
+                          description: `Rezervacija: ${selectedBooking.title}`
+                        }]
+                      });
+                    }}
+                    onApprove={async (data, actions) => {
+                      const order = await actions.order.capture();
+                      await createReservation('PAYPAL', order.id);
+                    }}
+                    onError={(err) => {
+                      console.error('PayPal error:', err);
+                      alert('Greška pri obradi PayPal plaćanja');
+                      setProcessingPayment(false);
+                    }}
+                    onCancel={() => {
+                      setProcessingPayment(false);
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    style={{ ...styles.button, backgroundColor: '#6c757d', width: '100%', marginTop: '10px' }}
+                    onClick={() => { setShowReserveForm(false); setPaymentMethod('IN_PERSON'); setProcessingPayment(false); }}
+                    disabled={processingPayment}
+                  >
+                    Odustani
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" style={styles.submitButton} disabled={processingPayment}>
+                    Potvrdi Rezervaciju
+                  </button>
+                  <button 
+                    type="button"
+                    style={{ ...styles.button, backgroundColor: '#6c757d' }}
+                    onClick={() => { setShowReserveForm(false); setPaymentMethod('IN_PERSON'); setProcessingPayment(false); }}
+                    disabled={processingPayment}
+                  >
+                    Odustani
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

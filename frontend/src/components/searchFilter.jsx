@@ -1,1 +1,0 @@
-export { SearchFilter } from '../models/SearchFilter';

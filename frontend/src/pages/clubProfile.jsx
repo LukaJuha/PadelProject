@@ -22,11 +22,14 @@ function ClubProfile() {
 
   const fetchClubData = async () => {
     try {
+      const headers = {};
+      if (user?.accessToken) {
+        headers["Authorization"] = `Bearer ${user.accessToken}`;
+      }
+
       const res = await fetch(`${backendURL}/clubs/${clubId}/`, {
         method: "GET",
-        headers: {
-          "Authorization": `Bearer ${user?.accessToken}`,
-        },
+        headers: headers,
       });
 
       if (res.ok) {

@@ -11,21 +11,6 @@ function Register() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  /*
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setLocalUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (localUser) {
-      localStorage.setItem("user", JSON.stringify(localUser));
-    }
-  }, [localUser]);
-  */
-
   const register = (e) => {
     e.preventDefault();
     const form = e.target;

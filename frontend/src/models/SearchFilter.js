@@ -37,4 +37,6 @@ export class SearchFilter {
   fieldType = Object.values(Field.FLOOR_TYPES);
   // BOTH, YES, NO
   fieldLighting = "BOTH";
+  // Include clubs even if they have no matching fields
+  includeAllClubs = false;
 }

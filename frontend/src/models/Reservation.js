@@ -1,4 +1,26 @@
 export class Reservation {
+  static PAYMENT_METHODS = {
+    IN_PERSON: 'IN_PERSON',
+    PAYPAL: 'PAYPAL'
+  };
+
+  static PAYMENT_METHODS_HR = {
+    IN_PERSON: 'Plaćanje osobno',
+    PAYPAL: 'PayPal'
+  };
+
+  static PAYMENT_STATUS = {
+    PENDING: 'PENDING',
+    PAID: 'PAID',
+    CANCELLED: 'CANCELLED'
+  };
+
+  static PAYMENT_STATUS_HR = {
+    PENDING: 'Na čekanju',
+    PAID: 'Plaćeno',
+    CANCELLED: 'Otkazano'
+  };
+
   constructor(data = {}) {
     this.id = data.id;
     this.bookingId = data.bookingId;
@@ -12,6 +34,8 @@ export class Reservation {
     this.startTime = data.startTime;
     this.endTime = data.endTime;
     this.createdAt = data.createdAt;
+    this.paymentMethod = data.paymentMethod;
+    this.paymentStatus = data.paymentStatus;
   }
 
   static fromAPI(apiData) {
@@ -27,7 +51,9 @@ export class Reservation {
       dayOfWeek: apiData.day_of_week ?? apiData.dayOfWeek,
       startTime: apiData.start_time || apiData.startTime,
       endTime: apiData.end_time || apiData.endTime,
-      createdAt: apiData.created_at || apiData.createdAt
+      createdAt: apiData.created_at || apiData.createdAt,
+      paymentMethod: apiData.payment_method || apiData.paymentMethod,
+      paymentStatus: apiData.payment_status || apiData.paymentStatus
     });
   }
 

@@ -164,9 +164,22 @@ class Booking(models.Model):
 
 
 class Reservation(models.Model):
+    PAYMENT_METHODS = [
+        ('IN_PERSON', 'Pay in person'),
+        ('PAYPAL', 'PayPal'),
+    ]
+    
+    PAYMENT_STATUS = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
     id = models.AutoField(primary_key=True)
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='reservations')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='reservations')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='IN_PERSON', db_column='paymentMethod')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='PENDING', db_column='paymentStatus')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

@@ -519,6 +519,8 @@ def search(request):
     # fieldType may appear multiple times: ?fieldType=GRASS&fieldType=CONCRETE
     field_types = request.GET.getlist('fieldType') or []
 
+    include_all_clubs = (request.GET.get('includeAllClubs') or '').lower() in ('true', '1', 'yes')
+
     # Normalize types to upper
     field_types = [t.upper() for t in field_types]
 
@@ -579,6 +581,30 @@ def search(request):
             clubs_map[club_id]['fields'].append(field_obj)
 
     clubs = list(clubs_map.values())
+
+    # Optionally include clubs even if they have no matching fields
+    if include_all_clubs and search_type in ('BOTH', 'CLUB'):
+        club_filters = Q()
+        if q:
+            club_filters &= (
+                Q(userid__username__icontains=q) |
+                Q(name__icontains=q) |
+                Q(description__icontains=q) |
+                Q(address__icontains=q)
+            )
+        extra_clubs = Club.objects.filter(club_filters).select_related('userid')
+        for club in extra_clubs:
+            club_id = club.userid.id
+            if club_id not in clubs_map:
+                clubs_map[club_id] = {
+                    'id': club_id,
+                    'name': club.userid.username,
+                    'address': club.address,
+                    'description': club.description,
+                    'ratingAvg': float(club.rating_avg) if club.rating_avg else None,
+                    'fields': [],
+                }
+        clubs = list(clubs_map.values())
 
     result = {'clubs': [], 'fields': []}
 
@@ -1122,9 +1148,22 @@ def reserve_booking(request, field_id):
     
     try:
         booking_id = request.data.get('booking_id')
+        payment_method = request.data.get('payment_method', 'IN_PERSON')
+        paypal_order_id = request.data.get('paypal_order_id')
         
         if not booking_id:
             return Response({'error': 'booking_id is required'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate payment method
+        valid_methods = ['IN_PERSON', 'PAYPAL']
+        if payment_method not in valid_methods:
+            return Response({'error': 'Invalid payment method'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        # If PayPal payment, require order ID
+        if payment_method == 'PAYPAL' and not paypal_order_id:
+            return Response({'error': 'PayPal order ID is required for PayPal payments'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
         player = Player.objects.get(userid=user)
@@ -1135,9 +1174,14 @@ def reserve_booking(request, field_id):
             return Response({'error': 'You have already reserved this booking'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
+        # Set payment status based on payment method
+        payment_status = 'PAID' if payment_method == 'PAYPAL' else 'PENDING'
+        
         reservation = Reservation.objects.create(
             booking=booking,
-            player=player
+            player=player,
+            payment_method=payment_method,
+            payment_status=payment_status
         )
         
         return Response({
@@ -1146,6 +1190,9 @@ def reserve_booking(request, field_id):
                 'id': reservation.id,
                 'booking_id': reservation.booking.id,
                 'booking_title': reservation.booking.title,
+                'payment_method': reservation.payment_method,
+                'payment_status': reservation.payment_status,
+                'paypal_order_id': paypal_order_id if payment_method == 'PAYPAL' else None,
             }
         }, status=status.HTTP_201_CREATED)
         

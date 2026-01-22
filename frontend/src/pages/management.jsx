@@ -135,10 +135,10 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, floorType: e.target.value })}
                   style={styles.select}
                 >
-                  <option value="HARDWOOD">Hardwood</option>
+                  <option value="HARDWOOD">Tvrdo drvo</option>
                   <option value="GRASS">Trava</option>
-                  <option value="TURF">Turf</option>
-                  <option value="ARTIFICIAL">Umjetna trava</option>
+                  <option value="TURF">Travnjak</option>
+                  <option value="ARTIFICIAL">Umjetna podloga</option>
                 </select>
               </div>
 
@@ -149,8 +149,8 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, size: e.target.value })}
                   style={styles.select}
                 >
-                  <option value="SINGLE">Single</option>
-                  <option value="DOUBLE">Double</option>
+                  <option value="SINGLE">Pojedinačni</option>
+                  <option value="DOUBLE">Dvostruki</option>
                 </select>
               </div>
 

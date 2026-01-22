@@ -26,6 +26,7 @@ function Search() {
       newFilters.fieldLocation = searchParams.get("fieldLocation") || "BOTH";
       newFilters.fieldSize = searchParams.get("fieldSize") || "BOTH";
       newFilters.fieldLighting = searchParams.get("lighting") || "BOTH";
+      newFilters.includeAllClubs = (searchParams.get("includeAllClubs") || "false") === "true";
       const fieldTypes = searchParams.getAll("fieldType");
       if (fieldTypes.length > 0) {
         newFilters.fieldType = fieldTypes;
@@ -48,6 +49,7 @@ function Search() {
     if (filterObj.fieldLocation) params.set("fieldLocation", filterObj.fieldLocation);
     if (filterObj.fieldSize) params.set("fieldSize", filterObj.fieldSize);
     if (filterObj.fieldLighting) params.set("lighting", filterObj.fieldLighting);
+    if (filterObj.includeAllClubs) params.set("includeAllClubs", "true");
     if (Array.isArray(filterObj.fieldType)) {
       filterObj.fieldType.forEach((t) => params.append("fieldType", t));
     }
@@ -118,9 +120,9 @@ function Search() {
         {loading && <p>Loading results...</p>}
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <h3>Clubs</h3>
+        <h3>Klubovi</h3>
         {results.clubs.length === 0 ? (
-          <p>No matching clubs.</p>
+          <p>Nema odgovarajućih klubova.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -161,9 +163,9 @@ function Search() {
           </table>
         )}
 
-        <h3>Fields</h3>
+        <h3>Tereni</h3>
         {results.fields.length === 0 ? (
-          <p>No matching fields.</p>
+          <p>Nema odgovarajućih terena.</p>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
