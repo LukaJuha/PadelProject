@@ -158,6 +158,10 @@ def admin_update_user(request, user_id):
     """
     try:
         user = User.objects.get(id=user_id)
+        # Block modifying admin accounts via admin endpoints
+        if user.role == 'ADMIN':
+            return Response({'error': 'Admins cannot modify admin accounts via this endpoint'},
+                            status=status.HTTP_403_FORBIDDEN)
         data = request.data
         
         # Update username if provided
@@ -233,6 +237,10 @@ def admin_delete_user(request, user_id):
                             status=status.HTTP_400_BAD_REQUEST)
         
         user = User.objects.get(id=user_id)
+        # Block deleting admin accounts
+        if user.role == 'ADMIN':
+            return Response({'error': 'Admins cannot delete admin accounts'},
+                            status=status.HTTP_403_FORBIDDEN)
         user_email = user.email
         user.delete()
         
@@ -298,5 +306,272 @@ def admin_statistics(request):
         
         return Response(stats, status=status.HTTP_200_OK)
     
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_get_player_reservations(request, user_id):
+    """
+    GET /api/admin/users/<user_id>/reservations/
+    Get all reservations for a specific player user
+    Admin only
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        if user.role != 'PLAYER':
+            return Response({'error': 'User is not a player'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        player = user.player
+        reservations = Reservation.objects.filter(player=player).select_related('booking__field__clubid')
+        
+        reservations_data = []
+        for reservation in reservations:
+            booking = reservation.booking
+            field = booking.field
+            club = field.clubid
+            
+            reservations_data.append({
+                'id': reservation.id,
+                'booking_id': booking.id,
+                'booking_title': booking.title,
+                'field_id': field.id,
+                'field_name': field.name,
+                'club_id': club.userid_id,
+                'club_name': club.name,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+                'created_at': reservation.created_at
+            })
+        
+        return Response({'reservations': reservations_data}, status=status.HTTP_200_OK)
+    
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_delete_reservation(request, reservation_id):
+    """
+    DELETE /api/admin/reservations/<reservation_id>/
+    Delete any reservation
+    Admin only
+    """
+    try:
+        reservation = Reservation.objects.get(id=reservation_id)
+        reservation.delete()
+        
+        return Response({'message': 'Reservation deleted by admin'}, status=status.HTTP_200_OK)
+    
+    except Reservation.DoesNotExist:
+        return Response({'error': 'Reservation not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_get_club_fields(request, user_id):
+    """
+    GET /api/admin/users/<user_id>/fields/
+    Get all fields for a specific club user
+    Admin only
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        if user.role != 'CLUB':
+            return Response({'error': 'User is not a club'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        club = user.club
+        fields = Field.objects.filter(clubid=club)
+        
+        fields_data = []
+        for field in fields:
+            fields_data.append({
+                'id': field.id,
+                'name': field.name,
+                'floor_type': field.floortype,
+                'floorType': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceiling_height': field.ceilingheight,
+                'ceilingHeight': field.ceilingheight,
+                'lighting': field.lighting
+            })
+        
+        return Response({'fields': fields_data}, status=status.HTTP_200_OK)
+    
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_get_field_bookings(request, field_id):
+    """
+    GET /api/admin/fields/<field_id>/bookings/
+    Get all bookings for a specific field
+    Admin only
+    """
+    try:
+        field = Field.objects.get(id=field_id)
+        bookings = Booking.objects.filter(field=field)
+        
+        bookings_data = []
+        for booking in bookings:
+            has_reservation = Reservation.objects.filter(booking=booking).exists()
+            bookings_data.append({
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+                'has_reservation': has_reservation
+            })
+        
+        return Response({'bookings': bookings_data}, status=status.HTTP_200_OK)
+    
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_delete_field(request, field_id):
+    """
+    DELETE /api/admin/fields/<field_id>/
+    Delete a field and all its bookings
+    Admin only
+    """
+    try:
+        field = Field.objects.get(id=field_id)
+        field_name = field.name
+        field.delete()
+        
+        return Response({'message': f'Field {field_name} deleted by admin'}, status=status.HTTP_200_OK)
+    
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_delete_booking(request, booking_id):
+    """
+    DELETE /api/admin/bookings/<booking_id>/
+    Delete a booking and all its reservations
+    Admin only
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        booking_title = booking.title
+        booking.delete()
+        
+        return Response({'message': f'Booking {booking_title} deleted by admin'}, status=status.HTTP_200_OK)
+    
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_update_field(request, field_id):
+    """
+    PUT /api/admin/fields/<field_id>/
+    Update a field's properties
+    Admin only
+    """
+    try:
+        field = Field.objects.get(id=field_id)
+        data = request.data
+        
+        if 'name' in data:
+            field.name = data['name']
+        if 'floor_type' in data:
+            field.floortype = data['floor_type']
+        if 'size' in data:
+            field.size = data['size']
+        if 'location' in data:
+            field.location = data['location']
+        if 'ceiling_height' in data:
+            field.ceilingheight = data['ceiling_height']
+        if 'lighting' in data:
+            field.lighting = data['lighting']
+        
+        field.save()
+        
+        return Response({
+            'message': 'Field updated successfully',
+            'field': {
+                'id': field.id,
+                'name': field.name,
+                'floor_type': field.floortype,
+                'floorType': field.floortype,
+                'size': field.size,
+                'location': field.location,
+                'ceiling_height': field.ceilingheight,
+                'ceilingHeight': field.ceilingheight,
+                'lighting': field.lighting
+            }
+        }, status=status.HTTP_200_OK)
+    
+    except Field.DoesNotExist:
+        return Response({'error': 'Field not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_update_booking(request, booking_id):
+    """
+    PUT /api/admin/bookings/<booking_id>/
+    Update a booking's properties
+    Admin only
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        data = request.data
+        
+        if 'title' in data:
+            booking.title = data['title']
+        if 'day_of_week' in data:
+            booking.day_of_week = data['day_of_week']
+        if 'start_time' in data:
+            booking.start_time = data['start_time']
+        if 'end_time' in data:
+            booking.end_time = data['end_time']
+        
+        booking.save()
+        
+        has_reservation = Reservation.objects.filter(booking=booking).exists()
+        
+        return Response({
+            'message': 'Booking updated successfully',
+            'booking': {
+                'id': booking.id,
+                'title': booking.title,
+                'day_of_week': booking.day_of_week,
+                'start_time': str(booking.start_time),
+                'end_time': str(booking.end_time),
+                'has_reservation': has_reservation
+            }
+        }, status=status.HTTP_200_OK)
+    
+    except Booking.DoesNotExist:
+        return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

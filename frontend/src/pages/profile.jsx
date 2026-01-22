@@ -64,6 +64,16 @@ function Profile() {
 
             setUserData(profileData);
             oldData.current = { ...profileData };
+        } else if (user.role.toUpperCase() === "ADMIN") {
+            const profileData = {
+                email: data.email,
+                username: data.username || "",
+                firstName: data.first_name || "",
+                lastName: data.last_name || "",
+            };
+
+            setUserData(profileData);
+            oldData.current = { ...profileData };
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -105,6 +115,12 @@ function Profile() {
                     contact_number: userData.phoneNumber,
                     description: userData.description,
                     working_hours: userData.workingHours,
+                };
+            } else if (user.role.toUpperCase() === "ADMIN") {
+                body = {
+                    username: userData.username,
+                    first_name: userData.firstName,
+                    last_name: userData.lastName,
                 };
             }
             
@@ -247,6 +263,23 @@ function Profile() {
                     <label htmlFor="clubWorkingHoursText" className="clubTextAreaLabel">Radno vrijeme:</label>
                     <textarea value={userData?.workingHours} disabled={!editing} className="profileTextArea" id="clubWorkingHoursText"
                     onChange={(e) => setUserData({...userData, workingHours: e.target.value})} ></textarea>
+                </div>
+                </>
+            )}
+
+            {user.role.toUpperCase() === "ADMIN" && (
+                <>
+                <div className="profilePlayerContainer">
+                    <span>
+                        <label>Ime:</label>
+                        <input type="text" value={userData?.firstName || ""} disabled={!editing} className="profileTextInput"
+                        onChange={(e) => setUserData({...userData, firstName: e.target.value})} />
+                    </span>
+                    <span>
+                        <label>Prezime:</label>
+                        <input type="text" value={userData?.lastName || ""} disabled={!editing} className="profileTextInput" 
+                        onChange={(e) => setUserData({...userData, lastName: e.target.value})} />
+                    </span>
                 </div>
                 </>
             )}

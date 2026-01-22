@@ -9,6 +9,7 @@ import FieldDetail from "./pages/fieldDetail.jsx";
 import ClubProfile from "./pages/clubProfile.jsx";
 import PublicFieldView from "./pages/publicFieldView.jsx";
 import Reservations from "./pages/reservations.jsx";
+import Administration from "./pages/administration.jsx";
 import { UserProvider } from "./user-context.jsx";
 import { useContext, useEffect  } from "react";
 import UserContext from "./user-context.jsx";
@@ -58,6 +59,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Reservations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/administration"
+              element={
+                <ProtectedRoute>
+                  <Administration />
                 </ProtectedRoute>
               }
             />
@@ -141,6 +150,9 @@ function AppContent() {
             )}
             {user?.role?.toUpperCase() === 'PLAYER' && (
               <Link to="/reservations" style={styles.navButton}>Rezervacije</Link>
+            )}
+            {user?.role?.toUpperCase() === 'ADMIN' && (
+              <Link to="/administration" style={styles.navButton}>Administracija</Link>
             )}
             <Link to="/profile" style={styles.navButton}>Profil</Link>
             <button style={{ ...styles.navButton, backgroundColor: "#dc3545", color: "white" }} 
