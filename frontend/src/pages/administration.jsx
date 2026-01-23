@@ -1016,7 +1016,7 @@ export default function Administration() {
                       events={fieldBookings.map(booking => ({
                         id: booking.id,
                         title: booking.title,
-                        daysOfWeek: [booking.dayOfWeek],
+                        daysOfWeek: [(booking.dayOfWeek + 1) % 7],
                         startTime: booking.startTime,
                         endTime: booking.endTime,
                         extendedProps: {
