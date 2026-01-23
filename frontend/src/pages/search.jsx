@@ -126,18 +126,18 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-<<<<<<< HEAD
+
                 <th style={cellStyle}>Naziv</th>
                 <th style={cellStyle}>Adresa</th>
                 <th style={cellStyle}>Ocjena</th>
                 <th style={cellStyle}>Broj terena</th>
                 <th style={cellStyle}>Recenzije</th>
-=======
+
                 <th style={cellStyle}>Ime</th>
                 <th style={cellStyle}>Adresa</th>
                 <th style={cellStyle}>Ocjena</th>
                 <th style={cellStyle}>Broj odgovarajućih terena</th>
->>>>>>> main
+
               </tr>
             </thead>
             <tbody>
@@ -176,17 +176,17 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-<<<<<<< HEAD
+
                 <th style={cellStyle}>Naziv</th>
                 <th style={cellStyle}>Klub</th>
                 <th style={cellStyle}>Podloga</th>
                 <th style={cellStyle}>Veličina</th>
-=======
+
                 <th style={cellStyle}>Ime</th>
                 <th style={cellStyle}>Klub</th>
                 <th style={cellStyle}>Vrsta podloge</th>
                 <th style={cellStyle}>Velićina</th>
->>>>>>> main
+
                 <th style={cellStyle}>Lokacija</th>
                 <th style={cellStyle}>Osvjetljenje</th>
               </tr>
@@ -217,12 +217,12 @@ function Search() {
                       </button>
                     </div>
                   </td>
-<<<<<<< HEAD
+
                   <td style={cellStyle}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
                   <td style={cellStyle}>{Field.SIZES_HR[field.size] || field.size}</td>
                   <td style={cellStyle}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
                   <td style={cellStyle}>{Field.LIGHTING_HR[field.lighting]}</td>
-=======
+
                   <td style={cellStyle}>{
                         (f.floorType== "HARDWOOD" || f.floor_type == "HARDWOOD") ? 'Parket' :
                         (f.floorType== "GRASS" || f.floor_type == "GRASS") ? 'Trava' :
@@ -237,7 +237,7 @@ function Search() {
                       f.location== "INSIDE"  ? 'Unutra' : ''
                       }</td>
                   <td style={cellStyle}>{f.lighting ? 'Da' : 'Ne'}</td>
->>>>>>> main
+
                 </tr>
               ))}
             </tbody>

@@ -138,16 +138,16 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, floorType: e.target.value })}
                   style={styles.select}
                 >
-<<<<<<< HEAD
+
                   <option value="HARDWOOD">Tvrdo drvo</option>
                   <option value="GRASS">Trava</option>
                   <option value="TURF">Travnjak</option>
                   <option value="ARTIFICIAL">Umjetna podloga</option>
-=======
+
                   <option value="HARDWOOD">Parket</option>
                   <option value="GRASS">Trava</option>
                   <option value="ARTIFICIAL">Umjetna trava</option>
->>>>>>> main
+
                 </select>
               </div>
 
@@ -223,13 +223,13 @@ function Management() {
                   {fields.map((field) => (
                     <tr key={field.id}>
                       <td style={styles.td}>{field.name}</td>
-<<<<<<< HEAD
+
                       <td style={styles.td}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
                       <td style={styles.td}>{Field.SIZES_HR[field.size] || field.size}</td>
                       <td style={styles.td}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
                       <td style={styles.td}>{field.ceilingHeight || '-'}</td>
                       <td style={styles.td}>{Field.LIGHTING_HR[field.lighting]}</td>
-=======
+
                       <td style={styles.td}>{
                         (field.floorType== "HARDWOOD" || field.floor_type == "HARDWOOD") ? 'Parket' :
                         (field.floorType== "GRASS" || field.floor_type == "GRASS") ? 'Trava' :
@@ -247,7 +247,7 @@ function Management() {
                       </td>
                       <td style={styles.td}>{field.ceilingHeight || field.ceiling_height || '-'}</td>
                       <td style={styles.td}>{field.lighting ? 'Da' : 'Ne'}</td>
->>>>>>> main
+
                       <td style={styles.td}>
                         <button
                           style={styles.actionButton}
