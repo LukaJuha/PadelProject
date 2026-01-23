@@ -51,6 +51,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'backend.cors_middleware.PreflightCorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -58,11 +60,38 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-	'corsheaders.middleware.CorsMiddleware',
 ]
 
+FRONTEND_URL = env('FRONTEND_URL', default=None)
 CORS_ALLOWED_ORIGINS = [
-  "http://localhost:5173",
+    "http://localhost:5173",
+]
+if FRONTEND_URL:
+        # Expect full origin with scheme, no trailing slash
+        CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+# Allow cookies/credentials if frontend uses them
+CORS_ALLOW_CREDENTIALS = True
+
+# Satisfy common preflight header checks in dev
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
 
 STATIC_ROOT = BASE_DIR/'staticfiles'
