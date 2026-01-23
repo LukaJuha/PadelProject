@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, admin_views
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
@@ -12,6 +12,7 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/user/', views.current_user, name='current_user'),
     path('auth/user/update/', views.update_user, name='update_user'),
+    path('auth/user/delete/', views.delete_account, name='delete_account'),
     path('auth/password/change/', views.change_password, name='change_password'),
     path('search/', views.search, name="search"),
     path('fields/', views.list_fields, name='list_fields'),
@@ -29,5 +30,40 @@ urlpatterns = [
     path('fields/<int:field_id>/reservations/', views.get_field_reservations, name='get_field_reservations'),
     path('clubs/<int:club_id>/', views.get_club, name='get_club'),
     path('reservations/', views.get_all_player_reservations, name='get_all_player_reservations'),
+    path('reservations/history/', views.get_reservation_history, name='get_reservation_history'),
     path('reservations/<int:reservation_id>/', views.delete_reservation, name='delete_reservation'),
+    path('reservations/<int:reservation_id>/approve/', views.approve_reservation, name='approve_reservation'),
+    path('reviews/', views.create_review, name='create_review'),
+    path('reviews/user/<int:user_id>/', views.get_reviews_by_user, name='get_reviews_by_user'),
+    path('reviews/club/<int:club_id>/', views.get_reviews_by_club, name='get_reviews_by_club'),
+    path('reviews/<int:review_id>/', views.delete_review, name='delete_review'),
+    # Notifications
+    path('notifications/', views.get_all_notifications, name='get_all_notifications'),
+    path('notifications/last/', views.get_last_notifications, name='get_last_notifications'),
+    path('notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    # Admin endpoints
+    path('admin/users/', admin_views.admin_list_users, name='admin_list_users'),
+    path('admin/users/<int:user_id>/', admin_views.admin_get_user, name='admin_get_user'),
+    path('admin/users/<int:user_id>/update/', admin_views.admin_update_user, name='admin_update_user'),
+    path('admin/users/<int:user_id>/delete/', admin_views.admin_delete_user, name='admin_delete_user'),
+    path('admin/users/<int:user_id>/reservations/', admin_views.admin_get_player_reservations, name='admin_get_player_reservations'),
+    path('admin/users/<int:user_id>/fields/', admin_views.admin_get_club_fields, name='admin_get_club_fields'),
+    path('admin/reservations/<int:reservation_id>/', admin_views.admin_delete_reservation, name='admin_delete_reservation'),
+    path('admin/fields/<int:field_id>/bookings/', admin_views.admin_get_field_bookings, name='admin_get_field_bookings'),
+    path('admin/fields/<int:field_id>/', admin_views.admin_delete_field, name='admin_delete_field'),
+    path('admin/bookings/<int:booking_id>/', admin_views.admin_delete_booking, name='admin_delete_booking'),    
+    path('admin/bookings/<int:booking_id>/update/', admin_views.admin_update_booking, name='admin_update_booking'),
+    path('admin/fields/<int:field_id>/update/', admin_views.admin_update_field, name='admin_update_field'),    
+    path('admin/reviews/<int:review_id>/delete/', admin_views.admin_delete_review, name='admin_delete_review'),
+    path('admin/statistics/', admin_views.admin_statistics, name='admin_statistics'),
+    # Admin subscription management
+    path('admin/players/<int:player_id>/assign-subscription/', admin_views.admin_assign_subscription, name='admin_assign_subscription'),
+    path('admin/subscriptions/<int:player_offer_id>/', admin_views.admin_revoke_subscription, name='admin_revoke_subscription'),
+    path('admin/subscriptions/', admin_views.admin_list_all_subscriptions, name='admin_list_all_subscriptions'),
+    # Offers endpoints
+    path('offers/create/', views.create_offer, name='create_offer'),
+    path('offers/<int:offer_id>/', views.delete_offer, name='delete_offer'),
+    path('offers/<int:offer_id>/purchase/', views.purchase_offer, name='purchase_offer'),
+    path('clubs/<int:club_id>/offers/', views.get_club_offers, name='get_club_offers'),
+    path('player/offers/', views.get_player_offers, name='get_player_offers'),
 ]

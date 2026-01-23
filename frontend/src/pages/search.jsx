@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SearchFilter } from "../components/searchFilter";
+import { SearchFilter } from "../models/SearchFilter";
 import SearchFilters from "../components/searchFilters";
+import { Club, Field } from "../models";
+import { getBackendURL } from '../utils/api';
+
 
 function Search() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +27,7 @@ function Search() {
       newFilters.fieldLocation = searchParams.get("fieldLocation") || "BOTH";
       newFilters.fieldSize = searchParams.get("fieldSize") || "BOTH";
       newFilters.fieldLighting = searchParams.get("lighting") || "BOTH";
+      newFilters.includeAllClubs = (searchParams.get("includeAllClubs") || "false") === "true";
       const fieldTypes = searchParams.getAll("fieldType");
       if (fieldTypes.length > 0) {
         newFilters.fieldType = fieldTypes;
@@ -38,14 +42,13 @@ function Search() {
   }, [searchParams]);
 
   const performSearch = async (query, filterObj) => {
-    if (!query.trim()) return;
-
     const params = new URLSearchParams();
     params.set("q", query.trim());
     if (filterObj.searchType) params.set("type", filterObj.searchType);
     if (filterObj.fieldLocation) params.set("fieldLocation", filterObj.fieldLocation);
     if (filterObj.fieldSize) params.set("fieldSize", filterObj.fieldSize);
     if (filterObj.fieldLighting) params.set("lighting", filterObj.fieldLighting);
+    if (filterObj.includeAllClubs) params.set("includeAllClubs", "true");
     if (Array.isArray(filterObj.fieldType)) {
       filterObj.fieldType.forEach((t) => params.append("fieldType", t));
     }
@@ -53,12 +56,14 @@ function Search() {
     setLoading(true);
     setError(null);
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/search/?${params.toString()}`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
-      // expected shape: { clubs: [...], fields: [...] }
-      setResults({ clubs: data.clubs || [], fields: data.fields || [] });
+      // Convert API data to model instances
+      const clubs = (data.clubs || []).map(c => Club.fromAPI(c));
+      const fields = (data.fields || []).map(f => Field.fromAPI(f));
+      setResults({ clubs, fields });
     } catch (err) {
       setError(err.message || "Failed to fetch results");
       setResults({ clubs: [], fields: [] });
@@ -80,16 +85,28 @@ function Search() {
     <div>
       {/* Search Bar */}
       <form onSubmit={handleSearch} style={styles.searchBarContainer}>
-        <input
-          type="text"
-          placeholder="Pretražite klubove i terene"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={styles.searchInput}
-        />
-        <div style={styles.filterIconContainer} onClick={toggleFilters}>
-          <img src="/filter_icon.png" alt="Filtri" style={styles.filterIcon} />
+        <div style={styles.searchInputWrapper}>
+          <input
+            type="text"
+            placeholder="Pretražite klubove i terene"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={styles.searchInput}
+          />
+          <button
+            type="submit"
+            style={styles.searchButton}
+          >
+            <img src="/magnifier.png" alt="Search" style={styles.searchButtonIcon} />
+          </button>
         </div>
+        <button
+          type="button"
+          style={styles.filterButton}
+          onClick={toggleFilters}
+        >
+          <img src="/settings.png" alt="Filtri" style={styles.filterIcon} />
+        </button>
       </form>
 
       {/* Filter Modal */}
@@ -109,27 +126,43 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
+<<<<<<< HEAD
+                <th style={cellStyle}>Naziv</th>
+                <th style={cellStyle}>Adresa</th>
+                <th style={cellStyle}>Ocjena</th>
+                <th style={cellStyle}>Broj terena</th>
+                <th style={cellStyle}>Recenzije</th>
+=======
                 <th style={cellStyle}>Ime</th>
                 <th style={cellStyle}>Adresa</th>
                 <th style={cellStyle}>Ocjena</th>
                 <th style={cellStyle}>Broj odgovarajućih terena</th>
+>>>>>>> main
               </tr>
             </thead>
             <tbody>
-              {results.clubs.map((c) => (
-                <tr key={c.id}>
+              {results.clubs.map((club) => (
+                <tr key={club.id}>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${c.id}`} 
+                      href={`/club/${club.id}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${c.id}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${club.id}`); }}
                     >
-                      {c.name}
+                      {club.name}
                     </a>
                   </td>
-                  <td style={cellStyle}>{c.address}</td>
-                  <td style={cellStyle}>{c.ratingAvg ?? '-'}</td>
-                  <td style={cellStyle}>{(c.fields && c.fields.length) || 0}</td>
+                  <td style={cellStyle}>{club.address}</td>
+                  <td style={cellStyle}>{club.ratingAvg ?? '-'}</td>
+                  <td style={cellStyle}>{club.fields.length || 0}</td>
+                  <td style={cellStyle}>
+                    <button
+                      onClick={() => navigate(`/reviews/${club.id}`)}
+                      style={{ padding: '6px 10px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <img src="/star.png" alt="star" style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -143,35 +176,53 @@ function Search() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
+<<<<<<< HEAD
+                <th style={cellStyle}>Naziv</th>
+                <th style={cellStyle}>Klub</th>
+                <th style={cellStyle}>Podloga</th>
+                <th style={cellStyle}>Veličina</th>
+=======
                 <th style={cellStyle}>Ime</th>
                 <th style={cellStyle}>Klub</th>
                 <th style={cellStyle}>Vrsta podloge</th>
                 <th style={cellStyle}>Velićina</th>
+>>>>>>> main
                 <th style={cellStyle}>Lokacija</th>
                 <th style={cellStyle}>Osvjetljenje</th>
               </tr>
             </thead>
             <tbody>
-              {results.fields.map((f) => (
-                <tr key={f.id}>
+              {results.fields.map((field) => (
+                <tr key={field.id}>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${f.clubId}/field/${f.id}`} 
+                      href={`/club/${field.clubId}/field/${field.id}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${f.clubId}/field/${f.id}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${field.clubId}/field/${field.id}`); }}
                     >
-                      {f.name}
+                      {field.name}
                     </a>
                   </td>
                   <td style={cellStyle}>
                     <a 
-                      href={`/club/${f.clubId}`} 
+                      href={`/club/${field.clubId}`} 
                       style={{ color: '#007bff', textDecoration: 'none', cursor: 'pointer' }}
-                      onClick={(e) => { e.preventDefault(); navigate(`/club/${f.clubId}`); }}
+                      onClick={(e) => { e.preventDefault(); navigate(`/club/${field.clubId}`); }}
                     >
-                      {f.clubName}
+                      {field.clubName}
                     </a>
+                    <div style={{ marginTop: 6 }}>
+                      <button onClick={() => navigate(`/reviews/${field.clubId}`)} style={{ padding: '4px 8px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <img src="/star.png" alt="star" style={{ width: '14px', height: '14px' }} />
+                      </button>
+                    </div>
                   </td>
+<<<<<<< HEAD
+                  <td style={cellStyle}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
+                  <td style={cellStyle}>{Field.SIZES_HR[field.size] || field.size}</td>
+                  <td style={cellStyle}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
+                  <td style={cellStyle}>{Field.LIGHTING_HR[field.lighting]}</td>
+=======
                   <td style={cellStyle}>{
                         (f.floorType== "HARDWOOD" || f.floor_type == "HARDWOOD") ? 'Parket' :
                         (f.floorType== "GRASS" || f.floor_type == "GRASS") ? 'Trava' :
@@ -186,6 +237,7 @@ function Search() {
                       f.location== "INSIDE"  ? 'Unutra' : ''
                       }</td>
                   <td style={cellStyle}>{f.lighting ? 'Da' : 'Ne'}</td>
+>>>>>>> main
                 </tr>
               ))}
             </tbody>
@@ -204,20 +256,45 @@ const styles = {
     marginTop: "20px",
     width: "100%",
     maxWidth: "700px",
+    gap: "8px",
+  },
+  searchInputWrapper: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid #ccc",
+    borderRadius: "20px",
+    paddingRight: "8px",
+    backgroundColor: "#fff",
   },
   searchInput: {
     flex: 1,
     margin: 0,
-    maxWidth: "100%",
     padding: "10px 15px",
-    borderRadius: "20px",
-    border: "1px solid #ccc",
+    border: "none",
     outline: "none",
     fontSize: "16px",
+    borderRadius: "20px",
+    backgroundColor: "transparent",
   },
-  filterIconContainer: {
+  searchButton: {
     flex: 0,
-    marginLeft: "10px",
+    width: "30px",
+    height: "30px",
+    border: "none",
+    backgroundColor: "transparent",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    padding: 0,
+  },
+  searchButtonIcon: {
+    width: "20px",
+    height: "20px",
+  },
+  filterButton: {
+    flex: 0,
     width: "40px",
     height: "40px",
     borderRadius: "50%",
@@ -227,10 +304,11 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     cursor: "pointer",
+    padding: 0,
   },
   filterIcon: {
-    width: "40px",
-    height: "40px",
+    width: "20px",
+    height: "20px",
   },
   modalOverlay: {
     position: "fixed",

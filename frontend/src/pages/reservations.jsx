@@ -4,24 +4,37 @@ import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import { Reservation } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function Reservations() {
   const [user] = useContext(UserContext);
   const navigate = useNavigate();
 
   const [reservations, setReservations] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+  const [currentViewStart, setCurrentViewStart] = useState(null);
+  const [currentViewEnd, setCurrentViewEnd] = useState(null);
 
   useEffect(() => {
-    fetchReservations();
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'PLAYER') {
+      navigate("/login");
+      return;
+    }
+    setLoading(false);
+    // Initial fetch will be triggered by datesSet callback
   }, []);
 
-  const fetchReservations = async () => {
+  const fetchReservations = async (startDate = null, endDate = null) => {
     try {
-      const res = await fetch(`${backendURL}/reservations/`, {
+      const backendURL = getBackendURL();
+      let url = `${backendURL}/reservations/`;
+      if (startDate && endDate) {
+        url += `?start_date=${startDate}&end_date=${endDate}`;
+      }
+
+      const res = await fetch(url, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${user?.accessToken}`,
@@ -30,26 +43,24 @@ function Reservations() {
 
       if (res.ok) {
         const data = await res.json();
-        // Convert reservations to calendar events
-        const events = (data.reservations || []).map((reservation) => {
-          const dayOfWeek = reservation.day_of_week === 0 ? 6 : reservation.day_of_week - 1;
-          
+        // Convert reservations to model instances and then to calendar events
+        const reservationModels = (data.reservations || []).map(r => Reservation.fromAPI(r));
+        setReservations(reservationModels);
+        
+        const events = reservationModels.map((reservation) => {
+          const event = reservation.toCalendarEvent();
+          const isRepeating = Boolean(reservation.repeating);
+          // Ensure repeating reservations only render from their start date onward
+          const startRecur = isRepeating && reservation.date ? reservation.date : undefined;
           return {
-            id: reservation.id,
-            title: `${reservation.field_name} - ${reservation.booking_title}`,
-            daysOfWeek: [dayOfWeek],
-            startTime: reservation.start_time,
-            endTime: reservation.end_time,
-            backgroundColor: "#28a745",
-            borderColor: "#1e7e34",
-            extendedProps: {
-              clubId: reservation.club_id,
-              fieldId: reservation.field_id,
-              clubName: reservation.club_name,
-            }
+            ...event,
+            ...(startRecur ? { startRecur } : {}),
+            title: `${reservation.fieldName} - ${reservation.bookingTitle}${isRepeating ? ' (ponavljajuća)' : ''}`,
+            backgroundColor: isRepeating ? "#fd7e14" : "#28a745",
+            borderColor: isRepeating ? "#e36209" : "#1e7e34"
           };
         });
-        setReservations(events);
+        setCalendarEvents(events);
       } else {
         alert("Greška pri učitavanju rezervacija");
       }
@@ -67,6 +78,7 @@ function Reservations() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/reservations/${reservationId}/`, {
         method: "DELETE",
         headers: {
@@ -75,8 +87,13 @@ function Reservations() {
       });
 
       if (res.ok) {
-        alert("Rezervacija uspješno otkazana!");
-        fetchReservations();
+        const data = await res.json();
+        const refundAmount = data.refund_amount || 0;
+        alert(`Rezervacija uspješno otkazana!\nPovrat novca: ${refundAmount.toFixed(2)}€`);
+        // Re-fetch with current view dates
+        if (currentViewStart && currentViewEnd) {
+          fetchReservations(currentViewStart, currentViewEnd);
+        }
       } else {
         const data = await res.json();
         alert(data.error || "Greška pri otkazivanju rezervacije");
@@ -84,6 +101,20 @@ function Reservations() {
     } catch (error) {
       console.error("Error deleting reservation:", error);
       alert("Greška pri otkazivanju rezervacije");
+    }
+  };
+
+  const handleDatesSet = (dateInfo) => {
+    // Convert to YYYY-MM-DD format
+    const startDate = dateInfo.start.toISOString().split('T')[0];
+    const endDate = dateInfo.end.toISOString().split('T')[0];
+    
+    setCurrentViewStart(startDate);
+    setCurrentViewEnd(endDate);
+    
+    // Fetch reservations for the new date range
+    if (user?.authenticated) {
+      fetchReservations(startDate, endDate);
     }
   };
 
@@ -110,14 +141,17 @@ function Reservations() {
         <h2>Tjedni Pregled</h2>
         <div style={styles.calendarContainer}>
           <FullCalendar
+            locale="hr"
             plugins={[timeGridPlugin, dayGridPlugin]}
             initialView="timeGridWeek"
             headerToolbar={{
               left: 'prev,next today',
               center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              right: ''
             }}
-            events={reservations}
+            firstDay={1}
+            events={calendarEvents}
+            datesSet={handleDatesSet}
             slotLabelInterval="01:00"
             slotLabelFormat={{
               meridiem: false,
@@ -149,16 +183,34 @@ function Reservations() {
             <ul>
               {reservations.map((reservation) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-                const dayIndex = reservation.daysOfWeek[0] === 6 ? 0 : reservation.daysOfWeek[0] + 1;
+                const dayIndex = reservation.dayOfWeek;
                 
                 return (
                   <li key={reservation.id} style={styles.reservationItem}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <strong>{reservation.title}</strong>
+                        <strong>{reservation.fieldName} - {reservation.bookingTitle}</strong>
+                        {reservation.repeating && (
+                          <span style={{ marginLeft: '8px', padding: '2px 6px', backgroundColor: '#fd7e14', color: 'white', borderRadius: '4px', fontSize: '11px' }}>
+                            Ponavljajuća
+                          </span>
+                        )}
                         <br />
                         <span style={{ color: '#666', fontSize: '14px' }}>
                           {dayNames[dayIndex]} {reservation.startTime}-{reservation.endTime}
+                        </span>
+                        {reservation.repeating && reservation.date && (
+                          <>
+                            <br />
+                            <span style={{ color: '#666', fontSize: '12px' }}>
+                              Od datuma: {reservation.date}
+                            </span>
+                          </>
+                        )}
+                        <br />
+                        <span style={{ color: '#888', fontSize: '12px' }}>
+                          Plaćanje: {Reservation.PAYMENT_METHODS_HR[reservation.paymentMethod] || 'N/A'} | 
+                          Status: {Reservation.PAYMENT_STATUS_HR[reservation.paymentStatus] || 'N/A'}
                         </span>
                       </div>
                       <button

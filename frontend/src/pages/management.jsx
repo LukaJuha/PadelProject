@@ -1,6 +1,8 @@
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
+import { Field } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function Management() {
   const [user] = useContext(UserContext);
@@ -18,13 +20,16 @@ function Management() {
   });
 
   useEffect(() => {
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'CLUB') {
+      navigate("/login");
+      return;
+    }
     fetchFields();
   }, []);
 
   const fetchFields = async () => {
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ? 
-        import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       
       const res = await fetch(`${backendURL}/fields/`, {
         method: "GET",
@@ -35,7 +40,7 @@ function Management() {
 
       if (res.ok) {
         const data = await res.json();
-        setFields(data.fields || []);
+        setFields((data.fields || []).map(f => Field.fromAPI(f)));
       } else {
         console.error("Failed to fetch fields");
       }
@@ -49,18 +54,17 @@ function Management() {
   const handleAddField = async (e) => {
     e.preventDefault();
     
+    const fieldModel = new Field({
+      name: newField.name,
+      floorType: newField.floorType,
+      size: newField.size,
+      location: newField.location,
+      ceilingHeight: newField.ceilingHeight ? parseInt(newField.ceilingHeight) : null,
+      lighting: newField.lighting
+    });
+    
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ? 
-        import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-      
-      const body = {
-        name: newField.name,
-        floor_type: newField.floorType,
-        size: newField.size,
-        location: newField.location,
-        ceiling_height: newField.ceilingHeight ? parseInt(newField.ceilingHeight) : null,
-        lighting: newField.lighting,
-      };
+      const backendURL = getBackendURL();
 
       const res = await fetch(`${backendURL}/fields/create/`, {
         method: "POST",
@@ -68,13 +72,13 @@ function Management() {
           "Authorization": `Bearer ${user?.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(fieldModel.toAPI()),
       });
 
       if (res.ok) {
         const data = await res.json();
         alert("Teren uspješno dodan!");
-        setFields([...fields, data.field]);
+        setFields([...fields, Field.fromAPI(data.field)]);
         setShowAddForm(false);
         setNewField({
           name: "",
@@ -134,9 +138,16 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, floorType: e.target.value })}
                   style={styles.select}
                 >
+<<<<<<< HEAD
+                  <option value="HARDWOOD">Tvrdo drvo</option>
+                  <option value="GRASS">Trava</option>
+                  <option value="TURF">Travnjak</option>
+                  <option value="ARTIFICIAL">Umjetna podloga</option>
+=======
                   <option value="HARDWOOD">Parket</option>
                   <option value="GRASS">Trava</option>
                   <option value="ARTIFICIAL">Umjetna trava</option>
+>>>>>>> main
                 </select>
               </div>
 
@@ -147,8 +158,8 @@ function Management() {
                   onChange={(e) => setNewField({ ...newField, size: e.target.value })}
                   style={styles.select}
                 >
-                  <option value="SINGLE">Single</option>
-                  <option value="DOUBLE">Double</option>
+                  <option value="SINGLE">Pojedinačni</option>
+                  <option value="DOUBLE">Dvostruki</option>
                 </select>
               </div>
 
@@ -212,6 +223,13 @@ function Management() {
                   {fields.map((field) => (
                     <tr key={field.id}>
                       <td style={styles.td}>{field.name}</td>
+<<<<<<< HEAD
+                      <td style={styles.td}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
+                      <td style={styles.td}>{Field.SIZES_HR[field.size] || field.size}</td>
+                      <td style={styles.td}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
+                      <td style={styles.td}>{field.ceilingHeight || '-'}</td>
+                      <td style={styles.td}>{Field.LIGHTING_HR[field.lighting]}</td>
+=======
                       <td style={styles.td}>{
                         (field.floorType== "HARDWOOD" || field.floor_type == "HARDWOOD") ? 'Parket' :
                         (field.floorType== "GRASS" || field.floor_type == "GRASS") ? 'Trava' :
@@ -229,6 +247,7 @@ function Management() {
                       </td>
                       <td style={styles.td}>{field.ceilingHeight || field.ceiling_height || '-'}</td>
                       <td style={styles.td}>{field.lighting ? 'Da' : 'Ne'}</td>
+>>>>>>> main
                       <td style={styles.td}>
                         <button
                           style={styles.actionButton}

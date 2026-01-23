@@ -3,8 +3,9 @@ import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import { useContext, useEffect } from "react";
 import UserContext from "../user-context";
+import { getBackendURL } from '../utils/api';
 
-export default function GoogleLoginButton({ user, setUser }) {
+export default function GoogleLoginButton({ user, setUser, setLoading }) {
   const [globalUser, setGlobalUser] = useContext(UserContext);
   const navigate = useNavigate();
 
@@ -19,9 +20,10 @@ export default function GoogleLoginButton({ user, setUser }) {
     <div style={{ marginTop: "20px", display: "flex", justifyContent: "center" }}>
       <GoogleLogin
         onSuccess={async (res) => {
+          setLoading(true);
           const credential = res.credential;
 
-          const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+          const backendURL = getBackendURL();
           const checkRes = await fetch(backendURL + "/auth/google/check/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -32,7 +34,7 @@ export default function GoogleLoginButton({ user, setUser }) {
 
           if (checkRes.ok) {
             if (data.exists) {
-              const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+              const backendURL = getBackendURL();
               const loginRes = await fetch(backendURL + "/auth/google/login/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -44,16 +46,20 @@ export default function GoogleLoginButton({ user, setUser }) {
                 setGlobalUser({
                   accessToken: loginData.access,
                   refreshToken: loginData.refresh,
+                  userId: loginData.user.id,
                   email: loginData.user.email,
                   role: loginData.user.role,
                   authenticated: true,
                 });
+                setLoading(false);
                 navigate('/');
               } else {
                 alert(loginData.error || "Greška prilikom prijave");
+                setLoading(false);
                 setUser(null);
               }
             } else {
+              setLoading(false);
               setUser({
                 ...user,
                 credentials: credential,
@@ -64,6 +70,7 @@ export default function GoogleLoginButton({ user, setUser }) {
             }
           } else {
             alert(data.error || "Greška prilikom Google prijave");
+            setLoading(false);
             setUser(null);
           }
         }}

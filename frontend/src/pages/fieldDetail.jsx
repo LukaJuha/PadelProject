@@ -4,6 +4,8 @@ import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { Field, Booking } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function FieldDetail() {
   const [user] = useContext(UserContext);
@@ -13,6 +15,7 @@ function FieldDetail() {
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [showAddBooking, setShowAddBooking] = useState(false);
   const [showEditBooking, setShowEditBooking] = useState(false);
   const [showEditField, setShowEditField] = useState(false);
@@ -23,18 +26,24 @@ function FieldDetail() {
     dayOfWeek: 1, // 1 = Monday, 0 = Sunday
     startTime: "09:00",
     endTime: "10:00",
+    price: "",
+    subscriptionIds: [],
+    subscriptionOnly: false,
   });
 
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'CLUB') {
+      navigate("/login");
+      return;
+    }
     fetchFieldData();
     fetchBookings();
+    fetchSubscriptions();
   }, [fieldId]);
 
   const fetchFieldData = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/`, {
         method: "GET",
         headers: {
@@ -44,7 +53,7 @@ function FieldDetail() {
 
       if (res.ok) {
         const data = await res.json();
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
       } else {
         alert("Greška pri učitavanju terena");
         navigate("/management");
@@ -59,6 +68,7 @@ function FieldDetail() {
 
   const fetchBookings = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/`, {
         method: "GET",
         headers: {
@@ -70,15 +80,18 @@ function FieldDetail() {
         const data = await res.json();
         // Convert bookings to calendar events
         const events = (data.bookings || []).map((booking) => {
-          const daysOfWeek = [0, 1, 2, 3, 4, 5, 6];
-          const dayOfWeek = booking.day_of_week === 0 ? 6 : booking.day_of_week - 1; // Convert DB format to FullCalendar format
+          const dayOfWeek = booking.day_of_week === 0 ? 6 : booking.day_of_week - 1;
           
           return {
             id: booking.id,
             title: booking.title,
+            dayOfWeek: booking.day_of_week,
             daysOfWeek: [dayOfWeek],
             startTime: booking.start_time,
             endTime: booking.end_time,
+            subscriptionIds: booking.subscription_ids || [],
+            subscriptionOnly: booking.subscription_only || false,
+            price: booking.price || 0,
           };
         });
         setBookings(events);
@@ -88,10 +101,32 @@ function FieldDetail() {
     }
   };
 
+  const fetchSubscriptions = async () => {
+    try {
+      const backendURL = getBackendURL();
+      const res = await fetch(`${backendURL}/clubs/${user.userId}/offers/`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${user?.accessToken}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Filter only subscription offers
+        const subs = (data.offers || []).filter(o => o.offer_type === 'SUBSCRIPTION');
+        setSubscriptions(subs);
+      }
+    } catch (error) {
+      console.error("Error fetching subscriptions:", error);
+    }
+  };
+
   const handleAddBooking = async (e) => {
     e.preventDefault();
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/create/`, {
         method: "POST",
         headers: {
@@ -100,9 +135,12 @@ function FieldDetail() {
         },
         body: JSON.stringify({
           title: newBooking.title,
-          day_of_week: newBooking.dayOfWeek,
+          day_of_week: parseInt(newBooking.dayOfWeek),
           start_time: newBooking.startTime,
           end_time: newBooking.endTime,
+          price: parseFloat(newBooking.price),
+          subscription_ids: newBooking.subscriptionIds,
+          subscription_only: newBooking.subscriptionOnly,
         }),
       });
 
@@ -113,6 +151,9 @@ function FieldDetail() {
           dayOfWeek: 1,
           startTime: "09:00",
           endTime: "10:00",
+          price: "",
+          subscriptionIds: [],
+          subscriptionOnly: false,
         });
         setShowAddBooking(false);
         fetchBookings();
@@ -132,6 +173,7 @@ function FieldDetail() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/delete/`, {
         method: "DELETE",
         headers: {
@@ -156,11 +198,12 @@ function FieldDetail() {
     setEditingField({
       id: field.id,
       name: field.name,
-      floorType: field.floor_type || field.floorType,
+      floorType: field.floorType,
       size: field.size,
       location: field.location,
-      ceilingHeight: field.ceiling_height || field.ceilingHeight || "",
+      ceilingHeight: field.ceilingHeight || "",
       lighting: field.lighting,
+      reservationFee: field.reservationFee || "",
     });
     setShowEditField(true);
   };
@@ -168,29 +211,31 @@ function FieldDetail() {
   const handleUpdateField = async (e) => {
     e.preventDefault();
 
-    try {
-      const body = {
-        name: editingField.name,
-        floor_type: editingField.floorType,
-        size: editingField.size,
-        location: editingField.location,
-        ceiling_height: editingField.ceilingHeight ? parseInt(editingField.ceilingHeight) : null,
-        lighting: editingField.lighting,
-      };
+    const fieldModel = new Field({
+      name: editingField.name,
+      floorType: editingField.floorType,
+      size: editingField.size,
+      location: editingField.location,
+      ceilingHeight: editingField.ceilingHeight ? parseInt(editingField.ceilingHeight) : null,
+      lighting: editingField.lighting,
+      reservationFee: editingField.reservationFee ? parseFloat(editingField.reservationFee) : 0
+    });
 
+    try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${editingField.id}/update/`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${user?.accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(fieldModel.toAPI()),
       });
 
       if (res.ok) {
         const data = await res.json();
         alert("Teren uspješno ažuriran!");
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
         setShowEditField(false);
         setEditingField(null);
       } else {
@@ -209,6 +254,7 @@ function FieldDetail() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/${bookingId}/delete/`, {
         method: "DELETE",
         headers: {
@@ -230,13 +276,16 @@ function FieldDetail() {
   };
 
   const handleEditBooking = (booking) => {
-    const dayOfWeek = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
+    const dayOfWeek = booking.dayOfWeek;
     setEditingBooking({
       id: booking.id,
       title: booking.title,
       dayOfWeek: dayOfWeek,
       startTime: booking.startTime,
       endTime: booking.endTime,
+      price: booking.price || "",
+      subscriptionIds: booking.subscriptionIds || [],
+      subscriptionOnly: booking.subscriptionOnly || false,
     });
     setShowEditBooking(true);
   };
@@ -245,6 +294,7 @@ function FieldDetail() {
     e.preventDefault();
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/${editingBooking.id}/`, {
         method: "PUT",
         headers: {
@@ -253,9 +303,12 @@ function FieldDetail() {
         },
         body: JSON.stringify({
           title: editingBooking.title,
-          day_of_week: editingBooking.dayOfWeek,
+          day_of_week: parseInt(editingBooking.dayOfWeek),
           start_time: editingBooking.startTime,
           end_time: editingBooking.endTime,
+          price: parseFloat(editingBooking.price),
+          subscription_ids: editingBooking.subscriptionIds,
+          subscription_only: editingBooking.subscriptionOnly,
         }),
       });
 
@@ -288,7 +341,7 @@ function FieldDetail() {
         <div>
           <h1>{field.name}</h1>
           <p style={styles.subtitle}>
-            {field.floor_type || field.floorType} • {field.size} • {field.location}
+            {Field.FLOOR_TYPES_HR[field.floorType]} • {Field.SIZES_HR[field.size]} • {Field.LOCATIONS_HR[field.location]}
           </p>
         </div>
         <div>
@@ -373,15 +426,26 @@ function FieldDetail() {
             </div>
 
             <div style={styles.formGroup}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={editingField.lighting}
-                  onChange={(e) => setEditingField({ ...editingField, lighting: e.target.checked })}
-                />
-                Osvjetljenje
-              </label>
+              <label>Naknada za otkazivanje (€):</label>
+              <input
+                type="number"
+                step="0.01"
+                value={editingField.reservationFee}
+                onChange={(e) => setEditingField({ ...editingField, reservationFee: e.target.value })}
+                style={styles.input}
+              />
             </div>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label>
+              <input
+                type="checkbox"
+                checked={editingField.lighting}
+                onChange={(e) => setEditingField({ ...editingField, lighting: e.target.checked })}
+              />
+              Osvjetljenje
+            </label>
           </div>
 
           <button type="submit" style={styles.submitButton}>
@@ -405,12 +469,13 @@ function FieldDetail() {
         <h2>Tjedni Raspored</h2>
         <div style={styles.calendarContainer}>
           <FullCalendar
+            locale="hr"
             plugins={[timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             headerToolbar={false}
+            firstDay={1}
             events={bookings}
             slotLabelInterval="01:00"
-            hour12={false}
             slotLabelFormat={{
               meridiem: false,
               hour: "2-digit",
@@ -494,7 +559,62 @@ function FieldDetail() {
                   style={styles.input}
                 />
               </div>
+
+              <div style={styles.formGroup}>
+                <label>Cijena (€):</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newBooking.price}
+                  onChange={(e) => setNewBooking({ ...newBooking, price: e.target.value })}
+                  required
+                  style={styles.input}
+                  placeholder="npr. 15.00"
+                />
+              </div>
             </div>
+
+            {subscriptions.length > 0 && (
+              <div style={styles.formGroup}>
+                <label>Pretplate s popustom:</label>
+                <div style={styles.checkboxContainer}>
+                  {subscriptions.map(sub => (
+                    <label key={sub.id} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={newBooking.subscriptionIds.includes(sub.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewBooking({
+                              ...newBooking,
+                              subscriptionIds: [...newBooking.subscriptionIds, sub.id]
+                            });
+                          } else {
+                            setNewBooking({
+                              ...newBooking,
+                              subscriptionIds: newBooking.subscriptionIds.filter(id => id !== sub.id)
+                            });
+                          }
+                        }}
+                      />
+                      {sub.name} ({sub.discount_percentage}% popust)
+                    </label>
+                  ))}
+                </div>
+                {newBooking.subscriptionIds.length > 0 && (
+                  <div style={{ marginTop: '10px' }}>
+                    <label style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={newBooking.subscriptionOnly}
+                        onChange={(e) => setNewBooking({ ...newBooking, subscriptionOnly: e.target.checked })}
+                      />
+                      Samo igrači s odabranim pretplatama mogu rezervirati ovaj termin
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
 
             <button type="submit" style={styles.submitButton}>
               Spremi Termin
@@ -566,7 +686,62 @@ function FieldDetail() {
                   style={styles.input}
                 />
               </div>
+
+              <div style={styles.formGroup}>
+                <label>Cijena (€):</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editingBooking.price}
+                  onChange={(e) => setEditingBooking({ ...editingBooking, price: e.target.value })}
+                  required
+                  style={styles.input}
+                  placeholder="npr. 15.00"
+                />
+              </div>
             </div>
+
+            {subscriptions.length > 0 && (
+              <div style={styles.formGroup}>
+                <label>Pretplate s popustom:</label>
+                <div style={styles.checkboxContainer}>
+                  {subscriptions.map(sub => (
+                    <label key={sub.id} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={editingBooking.subscriptionIds.includes(sub.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditingBooking({
+                              ...editingBooking,
+                              subscriptionIds: [...editingBooking.subscriptionIds, sub.id]
+                            });
+                          } else {
+                            setEditingBooking({
+                              ...editingBooking,
+                              subscriptionIds: editingBooking.subscriptionIds.filter(id => id !== sub.id)
+                            });
+                          }
+                        }}
+                      />
+                      {sub.name} ({sub.discount_percentage}% popust)
+                    </label>
+                  ))}
+                </div>
+                {editingBooking.subscriptionIds.length > 0 && (
+                  <div style={{ marginTop: '10px' }}>
+                    <label style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={editingBooking.subscriptionOnly}
+                        onChange={(e) => setEditingBooking({ ...editingBooking, subscriptionOnly: e.target.checked })}
+                      />
+                      Samo igrači s odabranim pretplatama mogu rezervirati ovaj termin
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
 
             <button type="submit" style={styles.submitButton}>
               Spremi Promjene
@@ -581,7 +756,7 @@ function FieldDetail() {
             <ul>
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-                const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
+                const dayIndex = booking.dayOfWeek;
                 
                 return (
                   <li key={booking.id} style={styles.bookingItem}>
@@ -700,6 +875,19 @@ const styles = {
     cursor: "pointer",
     fontSize: "16px",
     marginTop: "10px",
+  },
+  checkboxContainer: {
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    padding: "10px",
+    backgroundColor: "white",
+    maxHeight: "150px",
+    overflowY: "auto",
+  },
+  checkboxLabel: {
+    display: "block",
+    marginBottom: "8px",
+    cursor: "pointer",
   },
   bookingsList: {
     backgroundColor: "white",

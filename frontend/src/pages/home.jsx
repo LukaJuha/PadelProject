@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SearchFilter } from "../components/searchFilter";
+import { SearchFilter } from '../models/SearchFilter';
 import SearchFilters from "../components/searchFilters";
 
 function Home() {
@@ -11,7 +11,7 @@ function Home() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
+    
       const params = new URLSearchParams();
       params.set("q", searchQuery.trim());
       if (filters.searchType) params.set("type", filters.searchType);
@@ -20,7 +20,7 @@ function Home() {
       if (filters.fieldLighting) params.set("lighting", filters.fieldLighting);
       if (Array.isArray(filters.fieldType)) filters.fieldType.forEach((t) => params.append("fieldType", t));
       navigate(`/search?${params.toString()}`);
-    }
+    
   };
 
   const toggleFilters = () => {
@@ -34,16 +34,28 @@ function Home() {
 
       {/* Search Bar */}
       <form onSubmit={handleSearch} style={styles.searchBarContainer}>
-        <input
-          type="text"
-          placeholder="Pretražite klubove i terene"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={styles.searchInput}
-        />
-        <div style={styles.filterIconContainer} onClick={toggleFilters}>
-          <img src="/filter_icon.png" alt="Filtri" style={styles.filterIcon} />
+        <div style={styles.searchInputWrapper}>
+          <input
+            type="text"
+            placeholder="Pretražite klubove i terene"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={styles.searchInput}
+          />
+          <button
+            type="submit"
+            style={styles.searchButton}
+          >
+            <img src="/magnifier.png" alt="Search" style={styles.searchButtonIcon} />
+          </button>
         </div>
+        <button
+          type="button"
+          style={styles.filterButton}
+          onClick={toggleFilters}
+        >
+          <img src="/settings.png" alt="Filtri" style={styles.filterIcon} />
+        </button>
       </form>
 
       {/* Filter Modal */}
@@ -62,20 +74,45 @@ const styles = {
     marginTop: "20px",
     width: "100%",
     maxWidth: "700px",
+    gap: "8px",
+  },
+  searchInputWrapper: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid #ccc",
+    borderRadius: "20px",
+    paddingRight: "8px",
+    backgroundColor: "#fff",
   },
   searchInput: {
     flex: 1,
     margin: 0,
-    maxWidth: "100%",
     padding: "10px 15px",
-    borderRadius: "20px",
-    border: "1px solid #ccc",
+    border: "none",
     outline: "none",
     fontSize: "16px",
+    borderRadius: "20px",
+    backgroundColor: "transparent",
   },
-  filterIconContainer: {
+  searchButton: {
     flex: 0,
-    marginLeft: "10px",
+    width: "30px",
+    height: "30px",
+    border: "none",
+    backgroundColor: "transparent",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    padding: 0,
+  },
+  searchButtonIcon: {
+    width: "20px",
+    height: "20px",
+  },
+  filterButton: {
+    flex: 0,
     width: "40px",
     height: "40px",
     borderRadius: "50%",
@@ -85,10 +122,11 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     cursor: "pointer",
+    padding: 0,
   },
   filterIcon: {
-    width: "40px",
-    height: "40px",
+    width: "20px",
+    height: "20px",
   },
   modalOverlay: {
     position: "fixed",

@@ -1,0 +1,22 @@
+DROP TABLE IF EXISTS
+    player,
+    profile_user_permissions,
+    profile_groups,
+    profile,
+    club,
+    booking,
+    field,
+    review,
+    reservation,
+    admin,
+    auth_group_permissions,
+    auth_group,
+    auth_permission,
+    authtoken_token,
+    token_blacklist_blacklistedtoken,
+    token_blacklist_outstandingtoken,
+    django_migrations,
+    django_content_type,
+    django_admin_log,
+    django_session
+CASCADE;

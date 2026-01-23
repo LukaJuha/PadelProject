@@ -1,9 +1,12 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import { PayPalButtons } from "@paypal/react-paypal-js";
+import { Field, Booking, Reservation } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function PublicFieldView() {
   const [user] = useContext(UserContext);
@@ -13,12 +16,20 @@ function PublicFieldView() {
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
+  const [rawBookings, setRawBookings] = useState([]);
   const [showReserveForm, setShowReserveForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('IN_PERSON');
+  const [repeating, setRepeating] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [isCurrentWeek, setIsCurrentWeek] = useState(true);
+  const [currentViewStart, setCurrentViewStart] = useState(null);
+  const [showSubscriptions, setShowSubscriptions] = useState({});
+  const calendarRef = useRef(null);
 
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+  // Computed events sa bojama na temelju rezervacija
+  const coloredEvents = bookings;
 
   useEffect(() => {
     fetchFieldData();
@@ -26,15 +37,23 @@ function PublicFieldView() {
     fetchReservations();
   }, [clubId, fieldId]);
 
+  useEffect(() => {
+    // Kada se rezervacije promijene, osvježi kalendar
+    if (calendarRef.current && reservations.length >= 0) {
+      calendarRef.current.getApi().refetchEvents();
+    }
+  }, [reservations]);
+
   const fetchFieldData = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/public/`, {
         method: "GET",
       });
 
       if (res.ok) {
         const data = await res.json();
-        setField(data.field);
+        setField(Field.fromAPI(data.field));
       } else {
         alert("Greška pri učitavanju terena");
         navigate("/");
@@ -49,21 +68,28 @@ function PublicFieldView() {
 
   const fetchBookings = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/public/`);
 
       if (res.ok) {
         const data = await res.json();
-        const events = (data.bookings || []).map((booking) => {
-          const dayOfWeek = booking.day_of_week === 0 ? 6 : booking.day_of_week - 1;
+        setRawBookings(data.bookings || []);
+        const bookingModels = (data.bookings || []).map(b => Booking.fromAPI(b));
+        const events = bookingModels.map((booking) => {
+          const dayOfWeek = booking.dayOfWeek === 0 ? 6 : booking.dayOfWeek - 1;
           
           return {
             id: booking.id,
             title: booking.title,
             daysOfWeek: [dayOfWeek],
-            startTime: booking.start_time,
-            endTime: booking.end_time,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
             backgroundColor: "#28a745",
             borderColor: "#1e7e34",
+            extendedProps: {
+              price: booking.price,
+              subscriptionOnly: booking.subscriptionOnly
+            }
           };
         });
         setBookings(events);
@@ -77,6 +103,7 @@ function PublicFieldView() {
     if (!user?.accessToken) return;
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/reservations/`, {
         method: "GET",
         headers: {
@@ -87,10 +114,102 @@ function PublicFieldView() {
       if (res.ok) {
         const data = await res.json();
         setReservations(data.reservations || []);
+        
+        // Osvježi kalendar nakon učitavanja rezervacija
+        if (calendarRef.current) {
+          calendarRef.current.getApi().refetchEvents();
+        }
       }
     } catch (error) {
       console.error("Error fetching reservations:", error);
     }
+  };
+
+  const getActiveReservations = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return reservations.filter(res => {
+      // Ako je repeating, mora biti od tog datuma naprijed (>= datuma početka)
+      if (res.repeating) {
+        return res.date <= today.toISOString().split('T')[0];
+      }
+      // Ako nije repeating, biti će samo taj dan
+      return true;
+    });
+  };
+
+  const isBookingReservedOnDate = (bookingId, dateStr) => {
+    const bookingReservations = reservations.filter(r => r.booking_id === bookingId);
+    
+    for (const res of bookingReservations) {
+      if (res.repeating) {
+        // Repeating: blocked from that date onwards
+        if (dateStr >= res.date) {
+          return true;
+        }
+      } else {
+        // Non-repeating: only that specific date
+        if (res.date === dateStr) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const handleEventDidMount = () => {
+    // Bez dodatnog bojenja; koristi default boje iz eventa
+  };
+
+  const computeDateForBooking = (booking) => {
+    if (booking?.date) return booking.date;
+    const weekStart = currentViewStart
+      ? new Date(currentViewStart)
+      : (() => {
+          const today = new Date();
+          const offset = (today.getDay() + 6) % 7; // make Monday the start
+          today.setDate(today.getDate() - offset);
+          today.setHours(0, 0, 0, 0);
+          return today;
+        })();
+    const fcDow = booking?.daysOfWeek?.[0] ?? 0;
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + fcDow);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Helper: je li zadani datum prije današnjeg (0h)
+  const isPastDate = (dateObjOrStr) => {
+    const d = typeof dateObjOrStr === 'string' ? new Date(dateObjOrStr) : new Date(dateObjOrStr);
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  };
+
+  // Helper: je li prošlo vrijeme početka za zadani datum+startTime
+  const isPastDateTime = (dateStr, startTimeStr) => {
+    if (!dateStr || !startTimeStr) return false;
+    const [h, m] = startTimeStr.split(":").map(Number);
+    const dt = new Date(dateStr);
+    dt.setHours(h ?? 0, m ?? 0, 0, 0);
+    return Date.now() >= dt.getTime();
+  };
+
+  // Centralized helper: is this booking reserved for the current week?
+  const hasActiveReservation = (booking) => {
+    if (!booking || !reservations?.length) return false;
+    const dateStr = computeDateForBooking(booking);
+    const bookingReservations = reservations.filter(r => r.booking_id === booking.id);
+    for (const res of bookingReservations) {
+      if (res.repeating) {
+        if (dateStr >= res.date) return true;
+      } else {
+        if (res.date === dateStr) return true;
+      }
+    }
+    return false;
   };
 
   const handleReserveBooking = (booking) => {
@@ -100,19 +219,164 @@ function PublicFieldView() {
       return;
     }
 
-    if (user.role !== 'PLAYER') {
+    if (user.role.toUpperCase() !== 'PLAYER') {
       alert("Samo igrači mogu rezervirati termine");
       return;
     }
 
+    const bookingDate = computeDateForBooking(booking);
+
+    // Blokiraj rezervaciju prošlih termina
+    if (isPastDate(bookingDate)) {
+      alert("Ne možete rezervirati termin u prošlosti.");
+      return;
+    }
+
+    // Ako je danas, provjeri je li početak već prošao
+    if (!isPastDate(bookingDate) && isPastDateTime(bookingDate, booking.startTime)) {
+      alert("Ne možete rezervirati termin koji je već započeo ili završio.");
+      return;
+    }
+
+    setSelectedBooking({ 
+      ...booking, 
+      date: bookingDate,
+      subscriptions: rawBookings.find(b => b.id === booking.id)?.subscriptions || [],
+      subscription_only: rawBookings.find(b => b.id === booking.id)?.subscription_only || false
+    });
+    setRepeating(false);
+    setShowReserveForm(true);
+  };
+
+  const handleDatesSet = (info) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const viewStart = new Date(info.start);
+    viewStart.setHours(0, 0, 0, 0);
+    setCurrentViewStart(viewStart);
+    setIsCurrentWeek(viewStart.getTime() === today.getTime());
+  };
+
+  const isReservedOnDate = (bookingId, date) => {
+    // date is a Date object, convert to YYYY-MM-DD
+    const dateStr = date.toISOString().split('T')[0];
+    const activeReservations = getActiveReservations();
+    const bookingReservations = activeReservations.filter(r => r.booking_id === bookingId);
+    
+    for (const res of bookingReservations) {
+      // If repeating, check if the date is on or after the reservation start date
+      if (res.repeating) {
+        // res.date je početak ponavljanja
+        if (dateStr >= res.date) return true;
+      }
+      // If not repeating, check if reservation date matches
+      if (!res.repeating && res.date === dateStr) return true;
+    }
+
+    return false;
+  };
+
+  const toTimeString = (dateObj) => {
+    if (!(dateObj instanceof Date)) return null;
+    const hours = `${dateObj.getHours()}`.padStart(2, '0');
+    const minutes = `${dateObj.getMinutes()}`.padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const calculateBookingPrice = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const PRICE_PER_HOUR = 10; // 10 eura po satu
+    
+    // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    // Calculate duration in hours
+    const startInMinutes = startHour * 60 + startMinute;
+    const endInMinutes = endHour * 60 + endMinute;
+    const durationInHours = (endInMinutes - startInMinutes) / 60;
+    
+    return durationInHours * PRICE_PER_HOUR;
+  };
+
+  const handleEventClick = (info) => {
+    const event = info.event;
+    const eventDate = info.event.start;
+
+    // Blokiraj prošle termine
+    if (isPastDate(eventDate)) {
+      alert("Ne možete rezervirati termin u prošlosti.");
+      return;
+    }
+
+    // Blokiraj ako je današnji termin već započeo
+    const eventStartTime = event.start;
+    if (eventStartTime && Date.now() >= new Date(eventStartTime).getTime()) {
+      alert("Ne možete rezervirati termin koji je već započeo.");
+      return;
+    }
+
+    const isReservedOnThisDate = isReservedOnDate(event.id, eventDate);
+
+    if (isReservedOnThisDate) {
+      alert("Ovaj termin je već rezerviran od strane drugog igrača");
+      return;
+    }
+
+    if (!user) {
+      alert("Molim vas prijavite se kako biste rezervirali termin");
+      navigate("/login");
+      return;
+    }
+
+    if (user.role.toUpperCase() !== 'PLAYER') {
+      alert("Samo igrači mogu rezervirati termine");
+      return;
+    }
+
+    // Find the original booking to get start and end times and price
+    const originalBooking = bookings.find(b => b.id === event.id);
+    const bookingStartTime = originalBooking?.startTime || toTimeString(event.start);
+    const bookingEndTime = originalBooking?.endTime || toTimeString(event.end);
+    const bookingPrice = event.extendedProps?.price ?? null;
+    const raw = rawBookings.find(b => b.id === event.id);
+
+    const booking = {
+      id: event.id,
+      title: event.title,
+      date: eventDate.toISOString().split('T')[0],
+      startTime: bookingStartTime,
+      endTime: bookingEndTime,
+      price: bookingPrice ?? calculateBookingPrice(bookingStartTime, bookingEndTime),
+      subscription_only: raw?.subscription_only || false,
+      subscriptions: raw?.subscriptions || []
+    };
+
     setSelectedBooking(booking);
+    setRepeating(false);
     setShowReserveForm(true);
   };
 
   const handleSubmitReservation = async (e) => {
     e.preventDefault();
 
+    // For PayPal payment, the PayPal button will handle the submission
+    if (paymentMethod === 'PAYPAL') {
+      return;
+    }
+
+    // For IN_PERSON payment, proceed with normal reservation
+    await createReservation('IN_PERSON');
+  };
+
+  const createReservation = async (paymentMethodValue, paypalOrderId = null) => {
     try {
+      const backendURL = getBackendURL();
+      if (!selectedBooking || !selectedBooking.date) {
+        alert('Molimo odaberite konkretan datum termina na kalendaru prije rezervacije.');
+        return;
+      }
+
       const res = await fetch(`${backendURL}/fields/${fieldId}/reserve/`, {
         method: "POST",
         headers: {
@@ -121,6 +385,10 @@ function PublicFieldView() {
         },
         body: JSON.stringify({
           booking_id: selectedBooking.id,
+          date: selectedBooking.date,
+          repeating,
+          payment_method: paymentMethodValue,
+          paypal_order_id: paypalOrderId,
         }),
       });
 
@@ -128,14 +396,19 @@ function PublicFieldView() {
         alert("Termin uspješno rezerviran!");
         setShowReserveForm(false);
         setSelectedBooking(null);
+        setRepeating(false);
+        setPaymentMethod('IN_PERSON');
+        setProcessingPayment(false);
         fetchReservations();
       } else {
         const data = await res.json();
         alert(data.error || "Greška pri rezervaciji termina");
+        setProcessingPayment(false);
       }
     } catch (error) {
       console.error("Error reserving booking:", error);
       alert("Greška pri rezervaciji termina");
+      setProcessingPayment(false);
     }
   };
 
@@ -153,6 +426,9 @@ function PublicFieldView() {
         <div>
           <h1>{field.name}</h1>
           <p style={styles.subtitle}>
+<<<<<<< HEAD
+            {Field.FLOOR_TYPES_HR[field.floorType]} • {Field.SIZES_HR[field.size]} • {Field.LOCATIONS_HR[field.location]}
+=======
           {
             (field.floorType== "HARDWOOD" || field.floor_type == "HARDWOOD") ? 'Parket' :
             (field.floorType== "GRASS" || field.floor_type == "GRASS") ? 'Trava' :
@@ -164,6 +440,7 @@ function PublicFieldView() {
                 field.location== "OUTSIDE" ? 'Vani' :
                 field.location== "INSIDE"  ? 'Unutra' : ''
                 }
+>>>>>>> main
           </p>
         </div>
         <button 
@@ -177,11 +454,30 @@ function PublicFieldView() {
       <div style={styles.section}>
         <h2>Tjedni Raspored</h2>
         <div style={styles.calendarContainer}>
+          {isCurrentWeek && (
+            <style>{`
+              .fc .fc-button-group > :first-child {
+                opacity: 0.5;
+                cursor: not-allowed !important;
+                pointer-events: none;
+              }
+            `}</style>
+          )}
           <FullCalendar
-            plugins={[timeGridPlugin, interactionPlugin]}
+            ref={calendarRef}
+            locale="hr"
+            plugins={[timeGridPlugin, dayGridPlugin]}
             initialView="timeGridWeek"
-            headerToolbar={false}
-            events={bookings}
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: ''
+            }}
+            firstDay={1}
+            datesSet={handleDatesSet}
+            events={coloredEvents}
+            eventDidMount={handleEventDidMount}
+            eventClick={handleEventClick}
             slotLabelInterval="01:00"
             slotLabelFormat={{
               meridiem: false,
@@ -209,23 +505,58 @@ function PublicFieldView() {
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
                 const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
-                const isReserved = reservations.some(r => r.booking_id === booking.id);
-                
+                const isReserved = hasActiveReservation(booking);
+                const rawBooking = rawBookings.find(b => b.id === booking.id);
+                const hasSubscriptions = !!(rawBooking?.subscriptions?.length);
                 return (
                   <li key={booking.id} style={styles.bookingItem}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
-                        {isReserved && <span style={{ color: '#28a745', marginLeft: '10px' }}>(Rezervirano)</span>}
-                      </span>
-                      {!isReserved && user?.role === 'PLAYER' && (
-                        <button
-                          type="button"
-                          style={{ ...styles.button, padding: '5px 10px', fontSize: '12px', backgroundColor: '#28a745' }}
-                          onClick={() => handleReserveBooking(booking)}
-                        >
-                          Rezerviraj
-                        </button>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
+                          {isReserved && <span style={{ marginLeft: '10px' }}>(Rezervirano)</span>}
+                          {rawBooking?.subscription_only && (
+                            <span style={{ color: '#ff6b6b', marginLeft: '10px', fontSize: '12px' }}>
+                              ⚠️ Samo za pretplatnike
+                            </span>
+                          )}
+                          <div style={{ fontSize: '14px', color: '#666', marginTop: '3px' }}>
+                            Cijena: <strong>{parseFloat(booking.price || 0).toFixed(2)}€</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          {hasSubscriptions && (
+                            <button
+                              type="button"
+                              style={styles.crownButton}
+                              onClick={() => setShowSubscriptions(prev => ({ ...prev, [booking.id]: !prev[booking.id] }))}
+                              title="Prikaži pretplate"
+                            >
+                              <img src="/crown.png" alt="pretplate" style={{ width: '20px', height: '20px' }} />
+                            </button>
+                          )}
+                          {!isReserved && user?.role === 'PLAYER' && (
+                            <button
+                              type="button"
+                              style={{ ...styles.button, padding: '5px 10px', fontSize: '12px', backgroundColor: '#28a745' }}
+                              onClick={() => handleReserveBooking(booking)}
+                            >
+                              Rezerviraj
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {showSubscriptions[booking.id] && hasSubscriptions && (
+                        <div style={styles.subscriptionsList}>
+                          <strong>Pretplate s popustom:</strong>
+                          <ul style={{ marginTop: '5px', marginLeft: '20px' }}>
+                            {rawBooking.subscriptions.map(sub => (
+                              <li key={sub.id} style={{ marginBottom: '5px' }}>
+                                {sub.name} - <span style={{ color: '#28a745', fontWeight: 'bold' }}>{sub.discount_percentage}% popust</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                     </div>
                   </li>
@@ -252,18 +583,129 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="submit" style={styles.submitButton}>
-                  Potvrdi Rezervaciju
-                </button>
-                <button 
-                  type="button"
-                  style={{ ...styles.button, backgroundColor: '#6c757d' }}
-                  onClick={() => setShowReserveForm(false)}
-                >
-                  Odustani
-                </button>
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', textAlign: 'center' }}>
+                <strong style={{ fontSize: '18px', color: '#28a745' }}>Cijena: {selectedBooking.price?.toFixed(2)}€</strong>
               </div>
+
+              {selectedBooking.subscription_only && selectedBooking.subscriptions && selectedBooking.subscriptions.length > 0 && (
+                <div style={{ marginBottom: '15px', padding: '12px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px' }}>
+                  <div style={{ fontWeight: 'bold', color: '#856404', marginBottom: '8px' }}>
+                    ⚠️ Ovaj termin zahtijeva jednu od sljedećih pretplata:
+                  </div>
+                  <ul style={{ margin: '0', paddingLeft: '20px', color: '#856404' }}>
+                    {selectedBooking.subscriptions.map(sub => (
+                      <li key={sub.id}>{sub.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                <span>Ponovi svaki tjedan</span>
+                <label style={{ display: 'flex', alignItems: 'right', gap: '8px' , paddingLeft: '100px', marginTop: '-17px' }}>
+                  <input
+                    type="checkbox"
+                    checked={repeating}
+                    onChange={(e) => setRepeating(e.target.checked)}
+                    disabled={processingPayment}
+                  />
+                  
+                </label>
+                <small style={{ color: '#666' }}>Ponavljajuća rezervacija blokira ovaj termin svakog tjedna dok je ne otkažete.</small>
+              </div>
+              
+              <div style={{ marginBottom: '20px', textAlign: 'left' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                  Način plaćanja:
+                </label>
+                <div style={{ marginBottom: '8px' }}>
+                  <input
+                    type="radio"
+                    id="payInPerson"
+                    name="paymentMethod"
+                    value="IN_PERSON"
+                    checked={paymentMethod === 'IN_PERSON'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '8px' }}
+                    disabled={processingPayment}
+                  />
+                  <label htmlFor="payInPerson">Platiti osobno u klubu</label>
+                </div>
+                <div>
+                  <input
+                    type="radio"
+                    id="payPaypal"
+                    name="paymentMethod"
+                    value="PAYPAL"
+                    checked={paymentMethod === 'PAYPAL'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '8px' }}
+                    disabled={processingPayment}
+                  />
+                  <label htmlFor="payPaypal">Platiti putem PayPal-a</label>
+                </div>
+              </div>
+
+              {paymentMethod === 'PAYPAL' ? (
+                <div style={{ marginBottom: '15px' }}>
+                  {processingPayment && (
+                    <p style={{ textAlign: 'center', color: '#666', marginBottom: '10px' }}>
+                      Procesiranje plaćanja...
+                    </p>
+                  )}
+                  <PayPalButtons
+                    style={{ layout: 'vertical' }}
+                    createOrder={(data, actions) => {
+                      setProcessingPayment(true);
+                      const rawPrice = selectedBooking?.price;
+                      const price = rawPrice != null ? parseFloat(rawPrice) : calculateBookingPrice(selectedBooking.startTime, selectedBooking.endTime);
+                      return actions.order.create({
+                        purchase_units: [{
+                          amount: {
+                            value: price.toFixed(2),
+                            currency_code: 'EUR'
+                          },
+                          description: `Rezervacija: ${selectedBooking.title}`
+                        }]
+                      });
+                    }}
+                    onApprove={async (data, actions) => {
+                      const order = await actions.order.capture();
+                      await createReservation('PAYPAL', order.id);
+                    }}
+                    onError={(err) => {
+                      console.error('PayPal error:', err);
+                      alert('Greška pri obradi PayPal plaćanja');
+                      setProcessingPayment(false);
+                    }}
+                    onCancel={() => {
+                      setProcessingPayment(false);
+                    }}
+                  />
+                  <button 
+                    type="button"
+                    style={{ ...styles.button, backgroundColor: '#6c757d', width: '100%', marginTop: '10px' }}
+                    onClick={() => { setShowReserveForm(false); setPaymentMethod('IN_PERSON'); setProcessingPayment(false); }}
+                    disabled={processingPayment}
+                  >
+                    Odustani
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" style={styles.submitButton} disabled={processingPayment}>
+                    Potvrdi Rezervaciju
+                  </button>
+                  <button 
+                    type="button"
+                    style={{ ...styles.button, backgroundColor: '#6c757d' }}
+                    onClick={() => { setShowReserveForm(false); setPaymentMethod('IN_PERSON'); setProcessingPayment(false); }}
+                    disabled={processingPayment}
+                  >
+                    Odustani
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
@@ -344,9 +786,29 @@ const styles = {
     padding: "10px",
     borderBottom: "1px solid #dee2e6",
     listStyleType: "none",
+  },
+  crownButton: {
+    padding: "5px 10px",
+    backgroundColor: "#ffc107",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "center",
+  },
+  subscriptionsList: {
+    marginTop: "10px",
+    padding: "10px",
+    backgroundColor: "#f8f9fa",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+  bookingItemReserved: {
+    backgroundColor: "#a9a9a9",
+    color: "#555",
+    opacity: 0.5,
+    cursor: "not-allowed",
   },
   modalOverlay: {
     position: "fixed",

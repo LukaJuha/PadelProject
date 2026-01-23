@@ -1,6 +1,9 @@
 import { useState, useContext, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
+import { Club, Field } from "../models";
+import { getBackendURL } from '../utils/api';
+
 
 function ClubProfile() {
   const [user] = useContext(UserContext);
@@ -11,26 +14,27 @@ function ClubProfile() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
     fetchClubData();
   }, [clubId]);
 
   const fetchClubData = async () => {
     try {
+      const backendURL = getBackendURL();
+      const headers = {};
+      if (user?.accessToken) {
+        headers["Authorization"] = `Bearer ${user.accessToken}`;
+      }
+
       const res = await fetch(`${backendURL}/clubs/${clubId}/`, {
         method: "GET",
-        headers: {
-          "Authorization": `Bearer ${user?.accessToken}`,
-        },
+        headers: headers,
       });
 
       if (res.ok) {
         const data = await res.json();
-        setClub(data.club);
-        setFields(data.fields || []);
+        setClub(Club.fromAPI(data.club));
+        setFields((data.fields || []).map(f => Field.fromAPI(f)));
       } else {
         alert("Greška pri učitavanju kluba");
         navigate("/");
@@ -59,6 +63,21 @@ function ClubProfile() {
           <p style={styles.subtitle}>
             {club.email || "Email nije dostupan"}
           </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            style={styles.offersButton}
+            onClick={() => navigate(`/club/${clubId}/offers`)}
+          >
+            Ponude Kluba
+          </button>
+          <button
+            style={styles.reviewsButton}
+            onClick={() => navigate(`/reviews/${clubId}`)}
+          >
+            <img src="/star.png" alt="star" style={{ width: '18px', height: '18px', marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} />
+            Vidi Recenzije
+          </button>
         </div>
       </div>
 
@@ -90,10 +109,10 @@ function ClubProfile() {
               {fields.map((field) => (
                 <tr key={field.id}>
                   <td style={styles.td}>{field.name}</td>
-                  <td style={styles.td}>{field.floor_type || field.floorType}</td>
-                  <td style={styles.td}>{field.size}</td>
-                  <td style={styles.td}>{field.location}</td>
-                  <td style={styles.td}>{field.lighting ? 'Da' : 'Ne'}</td>
+                  <td style={styles.td}>{Field.FLOOR_TYPES_HR[field.floorType] || field.floorType}</td>
+                  <td style={styles.td}>{Field.SIZES_HR[field.size] || field.size}</td>
+                  <td style={styles.td}>{Field.LOCATIONS_HR[field.location] || field.location}</td>
+                  <td style={styles.td}>{Field.LIGHTING_HR[field.lighting]}</td>
                   <td style={styles.td}>
                     <button
                       style={styles.actionButton}
@@ -160,6 +179,24 @@ const styles = {
   actionButton: {
     padding: "5px 10px",
     backgroundColor: "#17a2b8",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  reviewsButton: {
+    padding: "8px 16px",
+    backgroundColor: "#28a745",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  offersButton: {
+    padding: "8px 16px",
+    backgroundColor: "#007bff",
     color: "white",
     border: "none",
     borderRadius: "4px",

@@ -4,27 +4,13 @@ import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import "./styles/register.css"
 import GoogleLoginButton from "../components/googleOAuthButton";
+import { getBackendURL } from '../utils/api';
 
 function Register() {
   const [user, setUser] = useContext(UserContext);
   const [localUser, setLocalUser] = useState(null);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-
-  /*
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setLocalUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (localUser) {
-      localStorage.setItem("user", JSON.stringify(localUser));
-    }
-  }, [localUser]);
-  */
 
   const register = (e) => {
     e.preventDefault();
@@ -59,7 +45,7 @@ function Register() {
         };
 
         setLoading(true);
-        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const backendURL = getBackendURL();
         const res = await fetch(backendURL + "/auth/register/", {
           method: "POST",
           headers: {
@@ -78,7 +64,7 @@ function Register() {
               password: localUser.password
             };
 
-            const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+            const backendURL = getBackendURL();
             const res = await fetch(backendURL + "/auth/login/", {
               method: "POST",
               headers: {
@@ -115,7 +101,7 @@ function Register() {
           role: role.toUpperCase(),
         };
 
-        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const backendURL = getBackendURL();
         const res = await fetch(backendURL + "/auth/google/register/", {
           method: "POST",
           headers: {
@@ -158,7 +144,7 @@ function Register() {
       {(!localUser?.showRoles) && (
         <div>
           <form className="registerForm" onSubmit={register}>
-            <label>Username:</label>
+            <label>Korisničko ime:</label>
             <input type="text" required className="registerInput" value={localUser?.username}
             onChange={(e) => setLocalUser({...localUser, username: e.target.value})} />
 

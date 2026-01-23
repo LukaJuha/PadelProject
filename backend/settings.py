@@ -27,8 +27,8 @@ environ.Env.read_env(os.path.join(BASE_DIR, 'backend', '.env'))
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 SECRET_KEY = env('SECRET_KEY')
-DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+DEBUG = env.bool('DEBUG', default=True)
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
 
@@ -45,10 +45,14 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
 	'corsheaders',
+    'django_celery_beat',
+    'django_celery_results',
 	'api',
 ]
 
 MIDDLEWARE = [
+    'backend.cors_middleware.PreflightCorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,11 +60,38 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-	'corsheaders.middleware.CorsMiddleware',
 ]
 
+FRONTEND_URL = env('FRONTEND_URL', default=None)
 CORS_ALLOWED_ORIGINS = [
-  "http://localhost:5173",
+    "http://localhost:5173",
+]
+if FRONTEND_URL:
+        # Expect full origin with scheme, no trailing slash
+        CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+# Allow cookies/credentials if frontend uses them
+CORS_ALLOW_CREDENTIALS = True
+
+# Satisfy common preflight header checks in dev
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
 
 STATIC_ROOT = BASE_DIR/'staticfiles'
@@ -156,3 +187,17 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access token expires in 1 hour
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),     # Refresh token expires in 1 day
 }
+
+# Celery Configuration
+# Broker/backends can be overridden via env (e.g., RabbitMQ on Windows).
+CELERY_BROKER_URL = env(
+    'CELERY_BROKER_URL',
+    default=env('REDIS_URL', default='redis://localhost:6379/0')
+)
+CELERY_RESULT_BACKEND = env(
+    'CELERY_RESULT_BACKEND',
+    default=env('REDIS_URL', default='redis://localhost:6379/0')
+)
+
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True

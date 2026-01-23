@@ -1,4 +1,5 @@
-import { SearchFilter } from "./searchFilter";
+import { SearchFilter } from "../models/SearchFilter";
+import { Field } from '../models';
 
 export default function SearchFilters({ filters, setFilters, onClose }) {
   const updateFilter = (key, value) => {
@@ -28,6 +29,16 @@ export default function SearchFilters({ filters, setFilters, onClose }) {
           <label htmlFor="filterClub">Klub</label><br/>
           <input type="radio" id="filterField" name="filterSearchType" value="FIELD" style={styles.filterRadioBtn} onChange={(e)=> updateFilter('searchType', e.target.value)} checked={filters.searchType === 'FIELD'} />
           <label htmlFor="filterField">Teren</label>
+          <div style={{ marginTop: '8px' }}>
+            <input
+              type="checkbox"
+              id="includeAllClubs"
+              style={styles.filterRadioBtn}
+              checked={filters.includeAllClubs}
+              onChange={(e) => updateFilter('includeAllClubs', e.target.checked)}
+            />
+            <label htmlFor="includeAllClubs">Prikaži klubove bez terena</label>
+          </div>
         </div>
         <div>
           <p>Teren</p>
@@ -51,12 +62,29 @@ export default function SearchFilters({ filters, setFilters, onClose }) {
           </div>
           <div>
             <p>Tip podloge</p>
+<<<<<<< HEAD
+            {Object.entries(Field.FLOOR_TYPES).map(([key, value]) => (
+              <div key={value}>
+                <input 
+                  type="checkbox" 
+                  id={`filterFieldType${key}`} 
+                  name="filterFieldType" 
+                  value={value} 
+                  style={styles.filterRadioBtn} 
+                  onChange={() => toggleFieldType(value)} 
+                  checked={filters.fieldType.includes(value)} 
+                />
+                <label htmlFor={`filterFieldType${key}`}>{Field.FLOOR_TYPES_HR[value]}</label>
+              </div>
+            ))}
+=======
             <input type="checkbox" id="filterFieldTypeHardwood" name="filterFieldType" value="HARDWOOD" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('HARDWOOD')} checked={filters.fieldType.includes('HARDWOOD')} />
             <label htmlFor="filterFieldTypeHardwood">Parket</label><br/>
             <input type="checkbox" id="filterFieldTypeGrass" name="filterFieldType" value="GRASS" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('GRASS')} checked={filters.fieldType.includes('GRASS')} />
             <label htmlFor="filterFieldTypeGrass">Trava</label>
             <input type="checkbox" id="filterFieldTypeArtificial" name="filterFieldType" value="ARTIFICIAL" style={styles.filterRadioBtn} onChange={(e)=> toggleFieldType('ARTIFICIAL')} checked={filters.fieldType.includes('ARTIFICIAL')} />
             <label htmlFor="filterFieldTypeArtificial">Umjetna trava</label>
+>>>>>>> main
           </div>
           <div>
             <p>Osvjetljenje</p>

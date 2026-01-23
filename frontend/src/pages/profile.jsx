@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
+import { Player, Club, Admin } from "../models";
 import "./styles/profile.css";
+import { getBackendURL } from '../utils/api';
 
 function Profile() {
   const [user, setUser] = useContext(UserContext);
@@ -14,9 +16,14 @@ function Profile() {
   const oldData = useRef(null);
 
   useEffect(() => {
+    if (!user?.authenticated) {
+      navigate("/login");
+      return;
+    }
+
     const getProfileData = async () => {
       try {
-        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const backendURL = getBackendURL();
         const res = await fetch(backendURL + "/auth/user/", {
           method: "GET",
           headers: {
@@ -38,28 +45,41 @@ function Profile() {
         const data = await res.json();
 
         if (user.role.toUpperCase() === "PLAYER") {
+            const playerModel = Player.fromAPI(data);
             const profileData = {
                 email: data.email,
                 username: data.username || "",
-                firstName: data.first_name || "",
-                lastName: data.last_name || "",
-                phoneNumber: data.phone_number || "",
-                skillLevel: data.skill_level || "Beginner",
-                preferredDay: data.preferred_dow || 1,
-                preferredTime: data.preferred_time || "12:00",
+                firstName: playerModel.firstName,
+                lastName: playerModel.lastName,
+                phoneNumber: playerModel.phoneNumber,
+                skillLevel: playerModel.skillLevel || "BEGINNER",
+                preferredDay: playerModel.preferredDow || 1,
+                preferredTime: playerModel.preferredTime || "12:00",
             };
 
             setUserData(profileData);
             oldData.current = { ...profileData };
         } else if (user.role.toUpperCase() === "CLUB") {
+            const clubModel = Club.fromAPI(data);
             const profileData = {
                 email: data.email,
                 username: data.username || "",
-                name: data.name || "",
-                address: data.address || "",
-                phoneNumber: data.contact_number || "",
-                description: data.description || "",
-                workingHours: data.working_hours || "",
+                name: clubModel.name,
+                address: clubModel.address,
+                phoneNumber: clubModel.contactNumber,
+                description: clubModel.description,
+                workingHours: clubModel.workingHours,
+            };
+
+            setUserData(profileData);
+            oldData.current = { ...profileData };
+        } else if (user.role.toUpperCase() === "ADMIN") {
+            const adminModel = Admin.fromAPI(data);
+            const profileData = {
+                email: data.email,
+                username: data.username || "",
+                firstName: adminModel.firstName,
+                lastName: adminModel.lastName,
             };
 
             setUserData(profileData);
@@ -106,9 +126,18 @@ function Profile() {
                     description: userData.description,
                     working_hours: userData.workingHours,
                 };
-            }
+            } else if (user.role.toUpperCase() === "ADMIN") {
+        const adminModel = new Admin({
+          firstName: userData.firstName,
+          lastName: userData.lastName
+        });
+        body = {
+          username: userData.username,
+          ...adminModel.toAPI()
+        };
+      }
             
-            const backendURL = (import.meta.env.MODE === 'development') ? import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
             const res = await fetch(backendURL + "/auth/user/update/", {
               method: "PATCH",
               headers: {
@@ -143,7 +172,7 @@ function Profile() {
         <form className="profileForm">
             <div className="profileUserContainer">
                 <span>
-                    <label>Username:</label>
+                    <label>Korisničko ime:</label>
                     <input type="text" value={userData?.username || ""} required disabled={!editing} className="profileTextInput" 
                     onChange={(e) => setUserData({...userData, username: e.target.value})} />
                 </span>
@@ -251,9 +280,79 @@ function Profile() {
                 </>
             )}
 
+            {user.role.toUpperCase() === "ADMIN" && (
+                <>
+                <div className="profilePlayerContainer">
+                    <span>
+                        <label>Ime:</label>
+                        <input type="text" value={userData?.firstName || ""} disabled={!editing} className="profileTextInput"
+                        onChange={(e) => setUserData({...userData, firstName: e.target.value})} />
+                    </span>
+                    <span>
+                        <label>Prezime:</label>
+                        <input type="text" value={userData?.lastName || ""} disabled={!editing} className="profileTextInput" 
+                        onChange={(e) => setUserData({...userData, lastName: e.target.value})} />
+                    </span>
+                </div>
+                </>
+            )}
+
+            {user.role.toUpperCase() === "PLAYER" && (
+                <div style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
+                    <h3>Moje Pretplate i Tutorstva</h3>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/my-active-offers')}
+                        style={{
+                            padding: "8px 16px",
+                            backgroundColor: "#28a745",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                        }}
+                    >
+                        <img src="/crown.png" alt="offers" style={{ width: '16px', height: '16px' }} />                       
+                    </button>
+                </div>
+            )}
+
+            {user.role.toUpperCase() === "PLAYER" && (
+                <div style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
+                    <h3>Moje Recenzije</h3>
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/reviews/user/${user.userId}`)}
+                        style={{
+                            padding: "8px 16px",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                        }}
+                    >
+                        <img src="/star.png" alt="star" style={{ width: '16px', height: '16px' }} />                       
+                    </button>
+                </div>
+            )}
+
             {!editing && (
                 <div className="profileButtonContainer">
                     <button onClick={startEditing}>Uredi profil</button>
+                    {user?.role?.toUpperCase() === 'PLAYER' && (
+                        <button onClick={() => navigate('/reservation-history')} style={{ backgroundColor: '#17a2b8' }}>
+                            Povijest Rezervacija
+                        </button>
+                    )}
                 </div>
             )}
 
