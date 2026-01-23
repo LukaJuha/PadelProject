@@ -33,6 +33,17 @@ CORS_ALLOWED_ORIGIN_REGEXES = [r'^https:\/\/.*onrender\.com$']
 # Allow cookies/credentials if frontend uses them
 CORS_ALLOW_CREDENTIALS = True
 
+# TEMP: Broaden CORS during debugging; tighten once confirmed
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
