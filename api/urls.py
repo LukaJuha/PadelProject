@@ -56,6 +56,10 @@ urlpatterns = [
     path('admin/fields/<int:field_id>/update/', admin_views.admin_update_field, name='admin_update_field'),    
     path('admin/reviews/<int:review_id>/delete/', admin_views.admin_delete_review, name='admin_delete_review'),
     path('admin/statistics/', admin_views.admin_statistics, name='admin_statistics'),
+    # Admin subscription management
+    path('admin/players/<int:player_id>/assign-subscription/', admin_views.admin_assign_subscription, name='admin_assign_subscription'),
+    path('admin/subscriptions/<int:player_offer_id>/', admin_views.admin_revoke_subscription, name='admin_revoke_subscription'),
+    path('admin/subscriptions/', admin_views.admin_list_all_subscriptions, name='admin_list_all_subscriptions'),
     # Offers endpoints
     path('offers/create/', views.create_offer, name='create_offer'),
     path('offers/<int:offer_id>/', views.delete_offer, name='delete_offer'),

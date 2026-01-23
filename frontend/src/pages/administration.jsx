@@ -46,6 +46,14 @@ export default function Administration() {
     start_time: '',
     end_time: ''
   });
+  
+  // For subscription assignment
+  const [availableOffers, setAvailableOffers] = useState([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState('');
+  const [subscriptionDuration, setSubscriptionDuration] = useState(30);
+  const [playerSubscriptions, setPlayerSubscriptions] = useState([]);
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
 
   useEffect(() => {
     if (!user?.authenticated || user?.role?.toUpperCase() !== 'ADMIN') {
@@ -104,6 +112,8 @@ export default function Administration() {
     // Fetch additional data based on user role
     if (userToEdit.role === "PLAYER") {
       await fetchPlayerReservations(userToEdit.id);
+      await fetchAllOffers();
+      await fetchPlayerSubscriptions(userToEdit.id);
     } else if (userToEdit.role === "CLUB") {
       await fetchClubFields(userToEdit.id);
     }
@@ -124,6 +134,9 @@ export default function Administration() {
     setClubFields([]);
     setSelectedField(null);
     setFieldBookings([]);
+    setAvailableOffers([]);
+    setPlayerSubscriptions([]);
+    setSelectedOffer('');
   };
 
   const closeDeleteModal = () => {
@@ -138,6 +151,163 @@ export default function Administration() {
       ...editFormData,
       [name]: value,
     });
+  };
+  
+  // Fetch all available offers for subscription assignment
+  const fetchAllOffers = async () => {
+    setLoadingOffers(true);
+    setError("");
+    try {
+      const backendURL = getBackendURL();
+      
+      // First, get all clubs
+      const response = await fetch(`${backendURL}/search/?q=&type=CLUB&includeAllClubs=true`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const allOffers = [];
+        
+        // Fetch offers for each club
+        if (data.clubs && data.clubs.length > 0) {
+          for (const club of data.clubs) {
+            try {
+              const offersResponse = await fetch(`${backendURL}/clubs/${club.id}/offers/`, {
+                headers: {
+                  Authorization: `Bearer ${user.accessToken}`,
+                },
+              });
+              if (offersResponse.ok) {
+                const offersData = await offersResponse.json();
+                if (offersData.offers && offersData.offers.length > 0) {
+                  // Add club name to each offer
+                  offersData.offers.forEach(offer => {
+                    allOffers.push({
+                      ...offer,
+                      club_name: club.name,
+                      club_id: club.id
+                    });
+                  });
+                }
+              }
+            } catch (e) {
+              console.error(`Error fetching offers for club ${club.id}:`, e);
+            }
+          }
+        }
+        
+        setAvailableOffers(allOffers);
+      }
+    } catch (err) {
+      console.error("Error fetching offers:", err);
+      setError("Greška pri učitavanju ponuda");
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
+  
+  // Assign subscription to player
+  const handleAssignSubscription = async () => {
+    if (!selectedOffer) {
+      setError("Molimo odaberite ponudu");
+      return;
+    }
+    
+    setError("");
+    setSuccessMessage("");
+    try {
+      const backendURL = getBackendURL();
+      const response = await fetch(
+        `${backendURL}/admin/players/${selectedUser.id}/assign-subscription/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            offer_id: parseInt(selectedOffer),
+            duration_days: subscriptionDuration
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Greška pri dodjeljivanju pretplate");
+      }
+
+      setSuccessMessage("Pretplata uspješno dodijeljena!");
+      setSelectedOffer('');
+      setSubscriptionDuration(30);
+      // Refresh subscriptions list
+      await fetchPlayerSubscriptions(selectedUser.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  
+  // Fetch player subscriptions
+  const fetchPlayerSubscriptions = async (playerId) => {
+    setLoadingSubscriptions(true);
+    try {
+      const backendURL = getBackendURL();
+      const response = await fetch(
+        `${backendURL}/admin/subscriptions/?player_id=${playerId}&active_only=false`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setPlayerSubscriptions(data.subscriptions || []);
+      }
+    } catch (err) {
+      console.error("Error fetching player subscriptions:", err);
+    } finally {
+      setLoadingSubscriptions(false);
+    }
+  };
+  
+  // Revoke player subscription
+  const handleRevokeSubscription = async (subscriptionId) => {
+    if (!confirm("Sigurno želite poništiti ovu pretplatu?")) {
+      return;
+    }
+    
+    setError("");
+    setSuccessMessage("");
+    try {
+      const backendURL = getBackendURL();
+      const response = await fetch(
+        `${backendURL}/admin/subscriptions/${subscriptionId}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Greška pri poništavanju pretplate");
+      }
+
+      setSuccessMessage("Pretplata uspješno poništena!");
+      // Refresh subscriptions list
+      await fetchPlayerSubscriptions(selectedUser.id);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   // Save user changes
@@ -254,7 +424,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri otkazivanju rezervacije");
       }
-    } catch {
+    } catch (err) {
       setError("Greška pri otkazivanju rezervacije");
     }
   };
@@ -332,7 +502,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri brisanju terena");
       }
-    } catch {
+    } catch (err) {
       setError("Greška pri brisanju terena");
     }
   };
@@ -359,7 +529,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri brisanju bookinga");
       }
-    } catch {
+    } catch (err) {
       setError("Greška pri brisanju bookinga");
     }
   };
@@ -402,7 +572,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || 'Greška pri ažuriranju terena');
       }
-    } catch {
+    } catch (err) {
       setError('Greška pri ažuriranju terena');
     }
   };
@@ -432,7 +602,7 @@ export default function Administration() {
       });
 
       if (response.ok) {
-        await response.json();
+        const data = await response.json();
         setSuccessMessage('Booking uspješno ažuriran!');
         setEditingBooking(null);
         // Refresh the bookings list
@@ -443,7 +613,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || 'Greška pri ažuriranju bookinga');
       }
-    } catch {
+    } catch (err) {
       setError('Greška pri ažuriranju bookinga');
     }
   };
@@ -512,19 +682,23 @@ export default function Administration() {
             <div style={styles.reservationsSection}>
               {playerReservations.map((reservation) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-                const dayIndex = reservation.day_of_week === 0 ? 0 : reservation.day_of_week;
+                const dayIndex = reservation.dayOfWeek || 0;
                 
                 return (
                   <div key={reservation.id} style={styles.reservationCard}>
                     <div>
-                      <strong>{reservation.booking_title}</strong>
+                      <strong>{reservation.bookingTitle || 'N/A'}</strong>
                       <br />
                       <span style={{fontSize: "14px", color: "#666"}}>
-                        {reservation.field_name} - {reservation.club_name}
+                        {reservation.fieldName || 'N/A'} - {reservation.clubName || 'N/A'}
                       </span>
                       <br />
                       <span style={{fontSize: "14px", color: "#666"}}>
-                        {dayNames[dayIndex]} {reservation.start_time}-{reservation.end_time}
+                        {dayNames[dayIndex]} {reservation.startTime || 'N/A'}-{reservation.endTime || 'N/A'}
+                      </span>
+                      <br />
+                      <span style={{fontSize: "12px", color: "#888"}}>
+                        Datum: {reservation.date || 'N/A'}
                       </span>
                     </div>
                     <button
@@ -537,6 +711,112 @@ export default function Administration() {
                   </div>
                 );
               })}
+            </div>
+          )}
+          
+          <hr style={{margin: "20px 0"}} />
+          <h3>Aktivne pretplate</h3>
+          {loadingSubscriptions ? (
+            <p>Učitavanje pretplata...</p>
+          ) : playerSubscriptions.length === 0 ? (
+            <p style={{color: "#666"}}>Igrač nema aktivnih pretplata.</p>
+          ) : (
+            <div style={styles.reservationsSection}>
+              {playerSubscriptions.map((subscription) => {
+                const isActive = subscription.is_active && !subscription.is_expired;
+                const expiresDate = new Date(subscription.expires_at);
+                
+                return (
+                  <div key={subscription.id} style={{
+                    ...styles.reservationCard,
+                    backgroundColor: isActive ? 'white' : '#f8f9fa',
+                    opacity: isActive ? 1 : 0.7
+                  }}>
+                    <div>
+                      <strong>{subscription.offer.name}</strong>
+                      {!isActive && <span style={{color: '#dc3545', marginLeft: '8px', fontSize: '12px'}}>(Neaktivno)</span>}
+                      <br />
+                      <span style={{fontSize: "14px", color: "#666"}}>
+                        Klub: {subscription.offer.club}
+                      </span>
+                      <br />
+                      <span style={{fontSize: "14px", color: "#666"}}>
+                        Popust: {subscription.offer.discount_percentage || 0}% • Cijena: {subscription.offer.price}€/mj
+                      </span>
+                      <br />
+                      <span style={{fontSize: "12px", color: "#888"}}>
+                        Status plaćanja: {subscription.payment_status}
+                      </span>
+                      <br />
+                      <span style={{fontSize: "12px", color: subscription.is_expired ? '#dc3545' : '#28a745'}}>
+                        Ističe: {expiresDate.toLocaleDateString('hr-HR')} {expiresDate.toLocaleTimeString('hr-HR', {hour: '2-digit', minute: '2-digit'})}
+                      </span>
+                    </div>
+                    {isActive && (
+                      <button
+                        type="button"
+                        style={styles.deleteButtonSmall}
+                        onClick={() => handleRevokeSubscription(subscription.id)}
+                      >
+                        Poništi
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          <hr style={{margin: "20px 0"}} />
+          <h3>Dodijeli pretplatu</h3>
+          {loadingOffers ? (
+            <p>Učitavanje ponuda...</p>
+          ) : (
+            <div style={{padding: "15px", backgroundColor: "#f0f8ff", borderRadius: "5px"}}>
+              <div style={styles.formGroup}>
+                <label>Odaberi ponudu:</label>
+                <select
+                  value={selectedOffer}
+                  onChange={(e) => setSelectedOffer(e.target.value)}
+                  style={styles.input}
+                >
+                  <option value="">-- Odaberi ponudu --</option>
+                  {availableOffers.filter(o => o.offer_type === 'SUBSCRIPTION').map((offer) => (
+                    <option key={offer.id} value={offer.id}>
+                      {offer.name} - {offer.club_name} ({offer.monthly_price}€/mj, {offer.discount_percentage}% popust)
+                    </option>
+                  ))}
+                </select>
+                {availableOffers.length === 0 && (
+                  <small style={{color: "#dc3545", marginTop: "5px"}}>
+                    Nema dostupnih ponuda. Klubovi prvo moraju kreirati pretplate.
+                  </small>
+                )}
+                {availableOffers.length > 0 && availableOffers.filter(o => o.offer_type === 'SUBSCRIPTION').length === 0 && (
+                  <small style={{color: "#dc3545", marginTop: "5px"}}>
+                    Nema dostupnih pretplata. Ukupno ponuda: {availableOffers.length}
+                  </small>
+                )}
+              </div>
+              <div style={styles.formGroup}>
+                <label>Trajanje (dani):</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={subscriptionDuration}
+                  onChange={(e) => setSubscriptionDuration(parseInt(e.target.value))}
+                  style={styles.input}
+                />
+              </div>
+              <button
+                type="button"
+                style={{...styles.saveButton, marginTop: "10px"}}
+                onClick={handleAssignSubscription}
+                disabled={!selectedOffer}
+              >
+                Dodijeli pretplatu
+              </button>
             </div>
           )}
         </>

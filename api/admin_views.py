@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
-from .models import Player, Club, Admin, Field, Booking, Reservation, Review
+from .models import Player, Club, Admin, Field, Booking, Reservation, Review, Offer, PlayerOffer
 
 User = get_user_model()
 
@@ -573,5 +573,161 @@ def admin_update_booking(request, booking_id):
     
     except Booking.DoesNotExist:
         return Response({'error': 'Booking not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_assign_subscription(request, player_id):
+    """
+    POST /api/admin/players/<player_id>/assign-subscription/
+    Body: { "offer_id": 1, "duration_days": 30 }
+    Admin can assign any subscription to any player
+    """
+    try:
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        player = Player.objects.get(userid__id=player_id)
+        offer_id = request.data.get('offer_id')
+        duration_days = request.data.get('duration_days', 30)
+        
+        if not offer_id:
+            return Response({'error': 'offer_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        offer = Offer.objects.get(id=offer_id)
+        
+        # Check if player already has this exact offer active
+        existing = PlayerOffer.objects.filter(
+            player=player,
+            offer=offer,
+            is_active=True,
+            expires_at__gt=timezone.now()
+        ).first()
+        
+        if existing:
+            # Extend the existing subscription
+            existing.expires_at = timezone.now() + timedelta(days=duration_days)
+            existing.save()
+            
+            return Response({
+                'message': 'Subscription extended successfully',
+                'player_offer_id': existing.id,
+                'expires_at': existing.expires_at.isoformat()
+            }, status=status.HTTP_200_OK)
+        
+        # Create new player offer
+        expires_at = timezone.now() + timedelta(days=duration_days)
+        
+        player_offer = PlayerOffer.objects.create(
+            player=player,
+            offer=offer,
+            payment_status='PAID',
+            expires_at=expires_at,
+            is_active=True
+        )
+        
+        return Response({
+            'message': 'Subscription assigned successfully',
+            'player_offer_id': player_offer.id,
+            'expires_at': player_offer.expires_at.isoformat()
+        }, status=status.HTTP_201_CREATED)
+        
+    except Player.DoesNotExist:
+        return Response({'error': 'Player not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Offer.DoesNotExist:
+        return Response({'error': 'Offer not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_revoke_subscription(request, player_offer_id):
+    """
+    DELETE /api/admin/subscriptions/<player_offer_id>/
+    Admin can revoke any player's subscription
+    """
+    try:
+        player_offer = PlayerOffer.objects.get(id=player_offer_id)
+        player_offer.is_active = False
+        player_offer.save()
+        
+        return Response({
+            'message': 'Subscription revoked successfully'
+        }, status=status.HTTP_200_OK)
+        
+    except PlayerOffer.DoesNotExist:
+        return Response({'error': 'Subscription not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdmin])
+def admin_list_all_subscriptions(request):
+    """
+    GET /api/admin/subscriptions/?active_only=true&player_id=1
+    List all player subscriptions with optional filtering
+    """
+    try:
+        from django.utils import timezone
+        
+        subscriptions = PlayerOffer.objects.select_related(
+            'player__userid',
+            'offer__clubid__userid'
+        ).all()
+        
+        # Filter by active status
+        active_only = request.GET.get('active_only', '').lower() == 'true'
+        if active_only:
+            subscriptions = subscriptions.filter(
+                is_active=True,
+                expires_at__gt=timezone.now()
+            )
+        
+        # Filter by player
+        player_id = request.GET.get('player_id')
+        if player_id:
+            subscriptions = subscriptions.filter(player__userid__id=player_id)
+        
+        subscriptions_data = []
+        for sub in subscriptions:
+            offer_data = {
+                'id': sub.offer.id,
+                'name': sub.offer.name,
+                'type': sub.offer.offer_type,
+                'price': float(sub.offer.monthly_price),
+                'club': sub.offer.clubid.userid.username
+            }
+            
+            # Add discount percentage if it's a subscription offer
+            if sub.offer.offer_type == 'SUBSCRIPTION':
+                try:
+                    offer_data['discount_percentage'] = sub.offer.subscription.discount_percentage
+                except Subscription.DoesNotExist:
+                    offer_data['discount_percentage'] = 0
+            
+            subscriptions_data.append({
+                'id': sub.id,
+                'player': {
+                    'id': sub.player.userid.id,
+                    'username': sub.player.userid.username,
+                    'email': sub.player.userid.email
+                },
+                'offer': offer_data,
+                'payment_status': sub.payment_status,
+                'purchased_at': sub.purchased_at.isoformat(),
+                'expires_at': sub.expires_at.isoformat(),
+                'is_active': sub.is_active,
+                'is_expired': sub.expires_at < timezone.now()
+            })
+        
+        return Response({
+            'count': len(subscriptions_data),
+            'subscriptions': subscriptions_data
+        }, status=status.HTTP_200_OK)
+        
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
