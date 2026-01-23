@@ -158,8 +158,30 @@ function PublicFieldView() {
     return false;
   };
 
+<<<<<<< Updated upstream
   const handleEventDidMount = () => {
     // Bez dodatnog bojenja; koristi default boje iz eventa
+=======
+  const handleEventDidMount = (info) => {
+    const event = info.event;
+    const eventDate = event.start;
+    
+    // Izračunaj stvarni datum eventa u tjednu
+    const weekStart = new Date(eventDate);
+    weekStart.setDate(eventDate.getDate() - eventDate.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    
+    // Pronađi koji je dan u tjednu (0-6)
+    const dayOfWeek = event._def.daysOfWeek ? event._def.daysOfWeek[0] : eventDate.getDay();
+    
+    // Izračunaj stvarni datum
+    const actualDate = new Date(weekStart);
+    actualDate.setDate(weekStart.getDate() + dayOfWeek);
+    const dateStr = actualDate.toISOString().split('T')[0];
+    
+    info.el.style.backgroundColor = '#28a745 !important';
+    info.el.style.borderColor = '#1e7e34 !important';
+>>>>>>> Stashed changes
   };
 
   const computeDateForBooking = (booking) => {
@@ -179,6 +201,7 @@ function PublicFieldView() {
     return date.toISOString().split('T')[0];
   };
 
+<<<<<<< Updated upstream
   // Helper: je li zadani datum prije današnjeg (0h)
   const isPastDate = (dateObjOrStr) => {
     const d = typeof dateObjOrStr === 'string' ? new Date(dateObjOrStr) : new Date(dateObjOrStr);
@@ -197,6 +220,8 @@ function PublicFieldView() {
     return Date.now() >= dt.getTime();
   };
 
+=======
+>>>>>>> Stashed changes
   // Centralized helper: is this booking reserved for the current week?
   const hasActiveReservation = (booking) => {
     if (!booking || !reservations?.length) return false;
@@ -302,6 +327,7 @@ function PublicFieldView() {
   const handleEventClick = (info) => {
     const event = info.event;
     const eventDate = info.event.start;
+<<<<<<< Updated upstream
 
     // Blokiraj prošle termine
     if (isPastDate(eventDate)) {
@@ -316,6 +342,8 @@ function PublicFieldView() {
       return;
     }
 
+=======
+>>>>>>> Stashed changes
     const isReservedOnThisDate = isReservedOnDate(event.id, eventDate);
 
     if (isReservedOnThisDate) {
@@ -334,6 +362,7 @@ function PublicFieldView() {
       return;
     }
 
+<<<<<<< Updated upstream
     // Find the original booking to get start and end times and price
     const originalBooking = bookings.find(b => b.id === event.id);
     const bookingStartTime = originalBooking?.startTime || toTimeString(event.start);
@@ -341,15 +370,28 @@ function PublicFieldView() {
     const bookingPrice = event.extendedProps?.price ?? null;
     const raw = rawBookings.find(b => b.id === event.id);
 
+=======
+    // Find the original booking to get start and end times
+    const originalBooking = bookings.find(b => b.id === event.id);
+
+    const bookingStartTime = originalBooking?.startTime || toTimeString(event.start);
+    const bookingEndTime = originalBooking?.endTime || toTimeString(event.end);
+
+    // Create booking object with selected date
+>>>>>>> Stashed changes
     const booking = {
       id: event.id,
       title: event.title,
       date: eventDate.toISOString().split('T')[0],
       startTime: bookingStartTime,
+<<<<<<< Updated upstream
       endTime: bookingEndTime,
       price: bookingPrice ?? calculateBookingPrice(bookingStartTime, bookingEndTime),
       subscription_only: raw?.subscription_only || false,
       subscriptions: raw?.subscriptions || []
+=======
+      endTime: bookingEndTime
+>>>>>>> Stashed changes
     };
 
     setSelectedBooking(booking);
@@ -460,7 +502,11 @@ function PublicFieldView() {
               right: ''
             }}
             datesSet={handleDatesSet}
+<<<<<<< Updated upstream
             events={coloredEvents}
+=======
+            events={bookings}
+>>>>>>> Stashed changes
             eventDidMount={handleEventDidMount}
             eventClick={handleEventClick}
             slotLabelInterval="01:00"
@@ -490,6 +536,7 @@ function PublicFieldView() {
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
                 const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
+<<<<<<< Updated upstream
                 const isReserved = hasActiveReservation(booking);
                 const rawBooking = rawBookings.find(b => b.id === booking.id);
                 const hasSubscriptions = !!(rawBooking?.subscriptions?.length);
@@ -543,6 +590,41 @@ function PublicFieldView() {
                             ))}
                           </ul>
                         </div>
+=======
+                
+                // Centralized reservation check (handles both repeating and one-off)
+                const isReserved = hasActiveReservation(booking);
+                
+                return (
+                  <li
+                    key={booking.id}
+                    style={{
+                      padding: "10px",
+                      borderBottom: "1px solid #dee2e6",
+                      listStyleType: "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor: isReserved ? "#a9a9a9" : "white",
+                      color: isReserved ? "#555" : "black",
+                      opacity: isReserved ? 0.5 : 1,
+                      cursor: isReserved ? "not-allowed" : "default",
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span>
+                        <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
+                        {isReserved && <span style={{ marginLeft: '10px' }}>(Rezervirano)</span>}
+                      </span>
+                      {!isReserved && user?.role === 'PLAYER' && (
+                        <button
+                          type="button"
+                          style={{ ...styles.button, padding: '5px 10px', fontSize: '12px', backgroundColor: '#28a745' }}
+                          onClick={() => handleReserveBooking(booking)}
+                        >
+                          Rezerviraj
+                        </button>
+>>>>>>> Stashed changes
                       )}
                     </div>
                   </li>
@@ -569,6 +651,7 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
+<<<<<<< Updated upstream
               <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', textAlign: 'center' }}>
                 <strong style={{ fontSize: '18px', color: '#28a745' }}>Cijena: {selectedBooking.price?.toFixed(2)}€</strong>
               </div>
@@ -583,6 +666,23 @@ function PublicFieldView() {
                       <li key={sub.id}>{sub.name}</li>
                     ))}
                   </ul>
+=======
+              
+              {selectedBooking.startTime && selectedBooking.endTime && (
+                <div style={{ 
+                  backgroundColor: '#e7f3ff', 
+                  padding: '15px', 
+                  borderRadius: '5px', 
+                  marginBottom: '15px',
+                  border: '1px solid #007bff'
+                }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: '14px' }}>
+                    <strong>Trajanje:</strong> {selectedBooking.startTime.substring(0, 5)} - {selectedBooking.endTime.substring(0, 5)}
+                  </p>
+                  <p style={{ margin: '0', fontSize: '18px', color: '#007bff', fontWeight: 'bold' }}>
+                    Cijena: {calculateBookingPrice(selectedBooking.startTime, selectedBooking.endTime).toFixed(2)} €
+                  </p>
+>>>>>>> Stashed changes
                 </div>
               )}
 
@@ -643,8 +743,12 @@ function PublicFieldView() {
                     style={{ layout: 'vertical' }}
                     createOrder={(data, actions) => {
                       setProcessingPayment(true);
+<<<<<<< Updated upstream
                       const rawPrice = selectedBooking?.price;
                       const price = rawPrice != null ? parseFloat(rawPrice) : calculateBookingPrice(selectedBooking.startTime, selectedBooking.endTime);
+=======
+                      const price = calculateBookingPrice(selectedBooking.startTime, selectedBooking.endTime);
+>>>>>>> Stashed changes
                       return actions.order.create({
                         purchase_units: [{
                           amount: {
@@ -789,6 +893,12 @@ const styles = {
     backgroundColor: "#f8f9fa",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+  bookingItemReserved: {
+    backgroundColor: "#a9a9a9",
+    color: "#555",
+    opacity: 0.5,
+    cursor: "not-allowed",
   },
   modalOverlay: {
     position: "fixed",
