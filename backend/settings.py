@@ -28,7 +28,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, 'backend', '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=True)
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
 

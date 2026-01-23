@@ -92,7 +92,7 @@ describe('E2E: CRUD Operations', () => {
     expect(data.field.name).toBe('Updated E2E Field');
     expect(data.field.floor_type).toBe('GRASS');
     expect(data.field.size).toBe('SINGLE');
-  });
+  }, E2E_CONFIG.TIMEOUT);
 
   it('should DELETE the created field', async () => {
     expect(createdFieldId).toBeTruthy();

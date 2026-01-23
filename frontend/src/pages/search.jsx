@@ -42,8 +42,6 @@ function Search() {
   }, [searchParams]);
 
   const performSearch = async (query, filterObj) => {
-    if (!query.trim()) return;
-
     const params = new URLSearchParams();
     params.set("q", query.trim());
     if (filterObj.searchType) params.set("type", filterObj.searchType);
