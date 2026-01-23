@@ -108,7 +108,7 @@ function Login() {
 
           <button className="loginButton">Ulogiraj se</button>
         </form>
-        <GoogleLoginButton user={user} setUser={setUser}/>
+        <GoogleLoginButton user={user} setUser={setUser} setLoading={setLoading}/>
         <label>Nemate račun? <a href="/register">Registrirajte se</a></label>
       </div>
       )}

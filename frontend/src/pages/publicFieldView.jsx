@@ -28,11 +28,21 @@ function PublicFieldView() {
   const [showSubscriptions, setShowSubscriptions] = useState({});
   const calendarRef = useRef(null);
 
+  // Computed events sa bojama na temelju rezervacija
+  const coloredEvents = bookings;
+
   useEffect(() => {
     fetchFieldData();
     fetchBookings();
     fetchReservations();
   }, [clubId, fieldId]);
+
+  useEffect(() => {
+    // Kada se rezervacije promijene, osvježi kalendar
+    if (calendarRef.current && reservations.length >= 0) {
+      calendarRef.current.getApi().refetchEvents();
+    }
+  }, [reservations]);
 
   const fetchFieldData = async () => {
     try {
@@ -104,19 +114,52 @@ function PublicFieldView() {
       if (res.ok) {
         const data = await res.json();
         setReservations(data.reservations || []);
+        
+        // Osvježi kalendar nakon učitavanja rezervacija
+        if (calendarRef.current) {
+          calendarRef.current.getApi().refetchEvents();
+        }
       }
     } catch (error) {
       console.error("Error fetching reservations:", error);
     }
   };
 
-  const handleDatesSet = (info) => {
+  const getActiveReservations = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const viewStart = new Date(info.start);
-    viewStart.setHours(0, 0, 0, 0);
-    setCurrentViewStart(viewStart);
-    setIsCurrentWeek(viewStart.getTime() === today.getTime());
+    
+    return reservations.filter(res => {
+      // Ako je repeating, mora biti od tog datuma naprijed (>= datuma početka)
+      if (res.repeating) {
+        return res.date <= today.toISOString().split('T')[0];
+      }
+      // Ako nije repeating, biti će samo taj dan
+      return true;
+    });
+  };
+
+  const isBookingReservedOnDate = (bookingId, dateStr) => {
+    const bookingReservations = reservations.filter(r => r.booking_id === bookingId);
+    
+    for (const res of bookingReservations) {
+      if (res.repeating) {
+        // Repeating: blocked from that date onwards
+        if (dateStr >= res.date) {
+          return true;
+        }
+      } else {
+        // Non-repeating: only that specific date
+        if (res.date === dateStr) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const handleEventDidMount = () => {
+    // Bez dodatnog bojenja; koristi default boje iz eventa
   };
 
   const computeDateForBooking = (booking) => {
@@ -136,6 +179,39 @@ function PublicFieldView() {
     return date.toISOString().split('T')[0];
   };
 
+  // Helper: je li zadani datum prije današnjeg (0h)
+  const isPastDate = (dateObjOrStr) => {
+    const d = typeof dateObjOrStr === 'string' ? new Date(dateObjOrStr) : new Date(dateObjOrStr);
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  };
+
+  // Helper: je li prošlo vrijeme početka za zadani datum+startTime
+  const isPastDateTime = (dateStr, startTimeStr) => {
+    if (!dateStr || !startTimeStr) return false;
+    const [h, m] = startTimeStr.split(":").map(Number);
+    const dt = new Date(dateStr);
+    dt.setHours(h ?? 0, m ?? 0, 0, 0);
+    return Date.now() >= dt.getTime();
+  };
+
+  // Centralized helper: is this booking reserved for the current week?
+  const hasActiveReservation = (booking) => {
+    if (!booking || !reservations?.length) return false;
+    const dateStr = computeDateForBooking(booking);
+    const bookingReservations = reservations.filter(r => r.booking_id === booking.id);
+    for (const res of bookingReservations) {
+      if (res.repeating) {
+        if (dateStr >= res.date) return true;
+      } else {
+        if (res.date === dateStr) return true;
+      }
+    }
+    return false;
+  };
+
   const handleReserveBooking = (booking) => {
     if (!user) {
       alert("Molim vas prijavite se kako biste rezervirali termin");
@@ -143,12 +219,25 @@ function PublicFieldView() {
       return;
     }
 
-    if (user.role !== 'PLAYER') {
+    if (user.role.toUpperCase() !== 'PLAYER') {
       alert("Samo igrači mogu rezervirati termine");
       return;
     }
 
     const bookingDate = computeDateForBooking(booking);
+
+    // Blokiraj rezervaciju prošlih termina
+    if (isPastDate(bookingDate)) {
+      alert("Ne možete rezervirati termin u prošlosti.");
+      return;
+    }
+
+    // Ako je danas, provjeri je li početak već prošao
+    if (!isPastDate(bookingDate) && isPastDateTime(bookingDate, booking.startTime)) {
+      alert("Ne možete rezervirati termin koji je već započeo ili završio.");
+      return;
+    }
+
     setSelectedBooking({ 
       ...booking, 
       date: bookingDate,
@@ -159,27 +248,108 @@ function PublicFieldView() {
     setShowReserveForm(true);
   };
 
+  const handleDatesSet = (info) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const viewStart = new Date(info.start);
+    viewStart.setHours(0, 0, 0, 0);
+    setCurrentViewStart(viewStart);
+    setIsCurrentWeek(viewStart.getTime() === today.getTime());
+  };
+
+  const isReservedOnDate = (bookingId, date) => {
+    // date is a Date object, convert to YYYY-MM-DD
+    const dateStr = date.toISOString().split('T')[0];
+    const activeReservations = getActiveReservations();
+    const bookingReservations = activeReservations.filter(r => r.booking_id === bookingId);
+    
+    for (const res of bookingReservations) {
+      // If repeating, check if the date is on or after the reservation start date
+      if (res.repeating) {
+        // res.date je početak ponavljanja
+        if (dateStr >= res.date) return true;
+      }
+      // If not repeating, check if reservation date matches
+      if (!res.repeating && res.date === dateStr) return true;
+    }
+
+    return false;
+  };
+
+  const toTimeString = (dateObj) => {
+    if (!(dateObj instanceof Date)) return null;
+    const hours = `${dateObj.getHours()}`.padStart(2, '0');
+    const minutes = `${dateObj.getMinutes()}`.padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const calculateBookingPrice = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const PRICE_PER_HOUR = 10; // 10 eura po satu
+    
+    // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    // Calculate duration in hours
+    const startInMinutes = startHour * 60 + startMinute;
+    const endInMinutes = endHour * 60 + endMinute;
+    const durationInHours = (endInMinutes - startInMinutes) / 60;
+    
+    return durationInHours * PRICE_PER_HOUR;
+  };
+
   const handleEventClick = (info) => {
     const event = info.event;
     const eventDate = info.event.start;
-    
+
+    // Blokiraj prošle termine
+    if (isPastDate(eventDate)) {
+      alert("Ne možete rezervirati termin u prošlosti.");
+      return;
+    }
+
+    // Blokiraj ako je današnji termin već započeo
+    const eventStartTime = event.start;
+    if (eventStartTime && Date.now() >= new Date(eventStartTime).getTime()) {
+      alert("Ne možete rezervirati termin koji je već započeo.");
+      return;
+    }
+
+    const isReservedOnThisDate = isReservedOnDate(event.id, eventDate);
+
+    if (isReservedOnThisDate) {
+      alert("Ovaj termin je već rezerviran od strane drugog igrača");
+      return;
+    }
+
     if (!user) {
       alert("Molim vas prijavite se kako biste rezervirali termin");
       navigate("/login");
       return;
     }
 
-    if (user.role !== 'PLAYER') {
+    if (user.role.toUpperCase() !== 'PLAYER') {
       alert("Samo igrači mogu rezervirati termine");
       return;
     }
 
-    // Create booking object with selected date - use event.extendedProps for price
+    // Find the original booking to get start and end times and price
+    const originalBooking = bookings.find(b => b.id === event.id);
+    const bookingStartTime = originalBooking?.startTime || toTimeString(event.start);
+    const bookingEndTime = originalBooking?.endTime || toTimeString(event.end);
+    const bookingPrice = event.extendedProps?.price ?? null;
+    const raw = rawBookings.find(b => b.id === event.id);
+
     const booking = {
       id: event.id,
       title: event.title,
       date: eventDate.toISOString().split('T')[0],
-      price: event.extendedProps?.price || 0
+      startTime: bookingStartTime,
+      endTime: bookingEndTime,
+      price: bookingPrice ?? calculateBookingPrice(bookingStartTime, bookingEndTime),
+      subscription_only: raw?.subscription_only || false,
+      subscriptions: raw?.subscriptions || []
     };
 
     setSelectedBooking(booking);
@@ -290,7 +460,8 @@ function PublicFieldView() {
               right: ''
             }}
             datesSet={handleDatesSet}
-            events={bookings}
+            events={coloredEvents}
+            eventDidMount={handleEventDidMount}
             eventClick={handleEventClick}
             slotLabelInterval="01:00"
             slotLabelFormat={{
@@ -319,9 +490,9 @@ function PublicFieldView() {
               {bookings.map((booking) => {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
                 const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
-                const isReserved = reservations.some(r => r.booking_id === booking.id);
+                const isReserved = hasActiveReservation(booking);
                 const rawBooking = rawBookings.find(b => b.id === booking.id);
-                const hasSubscriptions = rawBooking && rawBooking.subscriptions && rawBooking.subscriptions.length > 0;
+                const hasSubscriptions = !!(rawBooking?.subscriptions?.length);
                 
                 return (
                   <li key={booking.id} style={styles.bookingItem}>
@@ -329,8 +500,8 @@ function PublicFieldView() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
-                          {isReserved && <span style={{ color: '#28a745', marginLeft: '10px' }}>(Rezervirano)</span>}
-                          {rawBooking.subscription_only && (
+                          {isReserved && <span style={{ marginLeft: '10px' }}>(Rezervirano)</span>}
+                          {rawBooking?.subscription_only && (
                             <span style={{ color: '#ff6b6b', marginLeft: '10px', fontSize: '12px' }}>
                               ⚠️ Samo za pretplatnike
                             </span>
@@ -398,7 +569,6 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
-
               <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', textAlign: 'center' }}>
                 <strong style={{ fontSize: '18px', color: '#28a745' }}>Cijena: {selectedBooking.price?.toFixed(2)}€</strong>
               </div>
@@ -417,14 +587,15 @@ function PublicFieldView() {
               )}
 
               <div style={{ marginBottom: '16px', textAlign: 'left' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Ponovi svaki tjedan</span>
+                <label style={{ display: 'flex', alignItems: 'right', gap: '8px' , paddingLeft: '100px', marginTop: '-17px' }}>
                   <input
                     type="checkbox"
                     checked={repeating}
                     onChange={(e) => setRepeating(e.target.checked)}
                     disabled={processingPayment}
                   />
-                  <span>Rezervacija se ponavlja svaki tjedan</span>
+                  
                 </label>
                 <small style={{ color: '#666' }}>Ponavljajuća rezervacija blokira ovaj termin svakog tjedna dok je ne otkažete.</small>
               </div>
@@ -472,11 +643,12 @@ function PublicFieldView() {
                     style={{ layout: 'vertical' }}
                     createOrder={(data, actions) => {
                       setProcessingPayment(true);
-                      const price = selectedBooking?.price ? parseFloat(selectedBooking.price).toFixed(2) : '0.00';
+                      const rawPrice = selectedBooking?.price;
+                      const price = rawPrice != null ? parseFloat(rawPrice) : calculateBookingPrice(selectedBooking.startTime, selectedBooking.endTime);
                       return actions.order.create({
                         purchase_units: [{
                           amount: {
-                            value: price,
+                            value: price.toFixed(2),
                             currency_code: 'EUR'
                           },
                           description: `Rezervacija: ${selectedBooking.title}`

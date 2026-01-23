@@ -50,8 +50,11 @@ function Reservations() {
         const events = reservationModels.map((reservation) => {
           const event = reservation.toCalendarEvent();
           const isRepeating = Boolean(reservation.repeating);
+          // Ensure repeating reservations only render from their start date onward
+          const startRecur = isRepeating && reservation.date ? reservation.date : undefined;
           return {
             ...event,
+            ...(startRecur ? { startRecur } : {}),
             title: `${reservation.fieldName} - ${reservation.bookingTitle}${isRepeating ? ' (ponavljajuća)' : ''}`,
             backgroundColor: isRepeating ? "#fd7e14" : "#28a745",
             borderColor: isRepeating ? "#e36209" : "#1e7e34"
@@ -195,6 +198,14 @@ function Reservations() {
                         <span style={{ color: '#666', fontSize: '14px' }}>
                           {dayNames[dayIndex]} {reservation.startTime}-{reservation.endTime}
                         </span>
+                        {reservation.repeating && reservation.date && (
+                          <>
+                            <br />
+                            <span style={{ color: '#666', fontSize: '12px' }}>
+                              Od datuma: {reservation.date}
+                            </span>
+                          </>
+                        )}
                         <br />
                         <span style={{ color: '#888', fontSize: '12px' }}>
                           Plaćanje: {Reservation.PAYMENT_METHODS_HR[reservation.paymentMethod] || 'N/A'} | 
