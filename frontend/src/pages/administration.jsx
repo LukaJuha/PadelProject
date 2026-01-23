@@ -51,6 +51,13 @@ export default function Administration() {
       ? import.meta.env.VITE_API_BASE_URL_LOCAL
       : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
+  useEffect(() => {
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+      navigate("/login");
+      return;
+    }
+  }, [user?.authenticated, user?.role, navigate]);
+
   // Fetch users based on search criteria
   const fetchUsers = async () => {
     setLoading(true);

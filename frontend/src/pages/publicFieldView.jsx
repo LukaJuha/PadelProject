@@ -19,8 +19,10 @@ function PublicFieldView() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('IN_PERSON');
+  const [repeating, setRepeating] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [isCurrentWeek, setIsCurrentWeek] = useState(true);
+  const [currentViewStart, setCurrentViewStart] = useState(null);
   const calendarRef = useRef(null);
 
   const backendURL = (import.meta.env.MODE === 'development') ? 
@@ -105,7 +107,25 @@ function PublicFieldView() {
     today.setHours(0, 0, 0, 0);
     const viewStart = new Date(info.start);
     viewStart.setHours(0, 0, 0, 0);
+    setCurrentViewStart(viewStart);
     setIsCurrentWeek(viewStart.getTime() === today.getTime());
+  };
+
+  const computeDateForBooking = (booking) => {
+    if (booking?.date) return booking.date;
+    const weekStart = currentViewStart
+      ? new Date(currentViewStart)
+      : (() => {
+          const today = new Date();
+          const offset = (today.getDay() + 6) % 7; // make Monday the start
+          today.setDate(today.getDate() - offset);
+          today.setHours(0, 0, 0, 0);
+          return today;
+        })();
+    const fcDow = booking?.daysOfWeek?.[0] ?? 0;
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + fcDow);
+    return date.toISOString().split('T')[0];
   };
 
   const handleReserveBooking = (booking) => {
@@ -120,7 +140,9 @@ function PublicFieldView() {
       return;
     }
 
-    setSelectedBooking(booking);
+    const bookingDate = computeDateForBooking(booking);
+    setSelectedBooking({ ...booking, date: bookingDate });
+    setRepeating(false);
     setShowReserveForm(true);
   };
 
@@ -147,6 +169,7 @@ function PublicFieldView() {
     };
 
     setSelectedBooking(booking);
+    setRepeating(false);
     setShowReserveForm(true);
   };
 
@@ -178,6 +201,7 @@ function PublicFieldView() {
         body: JSON.stringify({
           booking_id: selectedBooking.id,
           date: selectedBooking.date,
+          repeating,
           payment_method: paymentMethodValue,
           paypal_order_id: paypalOrderId,
         }),
@@ -187,6 +211,7 @@ function PublicFieldView() {
         alert("Termin uspješno rezerviran!");
         setShowReserveForm(false);
         setSelectedBooking(null);
+        setRepeating(false);
         setPaymentMethod('IN_PERSON');
         setProcessingPayment(false);
         fetchReservations();
@@ -322,6 +347,19 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
+
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={repeating}
+                    onChange={(e) => setRepeating(e.target.checked)}
+                    disabled={processingPayment}
+                  />
+                  <span>Rezervacija se ponavlja svaki tjedan</span>
+                </label>
+                <small style={{ color: '#666' }}>Ponavljajuća rezervacija blokira ovaj termin svakog tjedna dok je ne otkažete.</small>
+              </div>
               
               <div style={{ marginBottom: '20px', textAlign: 'left' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>

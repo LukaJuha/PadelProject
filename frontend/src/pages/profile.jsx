@@ -15,6 +15,11 @@ function Profile() {
   const oldData = useRef(null);
 
   useEffect(() => {
+    if (!user?.authenticated) {
+      navigate("/login");
+      return;
+    }
+
     const getProfileData = async () => {
       try {
         const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
@@ -296,8 +301,7 @@ function Profile() {
                     <h3>Moje Recenzije</h3>
                     <button
                         type="button"
-                        onClick={() => navigate(`/reviews/user/${user.userId}`)
-                    }
+                        onClick={() => navigate(`/reviews/user/${user.userId}`)}
                         style={{
                             padding: "8px 16px",
                             backgroundColor: "#007bff",
@@ -319,6 +323,11 @@ function Profile() {
             {!editing && (
                 <div className="profileButtonContainer">
                     <button onClick={startEditing}>Uredi profil</button>
+                    {user?.role?.toUpperCase() === 'PLAYER' && (
+                        <button onClick={() => navigate('/reservation-history')} style={{ backgroundColor: '#17a2b8' }}>
+                            Povijest Rezervacija
+                        </button>
+                    )}
                 </div>
             )}
 

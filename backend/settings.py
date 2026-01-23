@@ -27,7 +27,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, 'backend', '.env'))
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 SECRET_KEY = env('SECRET_KEY')
-DEBUG = env('DEBUG')
+DEBUG = env.bool('DEBUG', default=True)
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
 
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
 	'corsheaders',
+    'django_celery_beat',
+    'django_celery_results',
 	'api',
 ]
 
@@ -156,3 +158,17 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access token expires in 1 hour
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),     # Refresh token expires in 1 day
 }
+
+# Celery Configuration
+# Broker/backends can be overridden via env (e.g., RabbitMQ on Windows).
+CELERY_BROKER_URL = env(
+    'CELERY_BROKER_URL',
+    default=env('REDIS_URL', default='redis://localhost:6379/0')
+)
+CELERY_RESULT_BACKEND = env(
+    'CELERY_RESULT_BACKEND',
+    default=env('REDIS_URL', default='redis://localhost:6379/0')
+)
+
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True

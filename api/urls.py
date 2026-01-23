@@ -30,11 +30,16 @@ urlpatterns = [
     path('fields/<int:field_id>/reservations/', views.get_field_reservations, name='get_field_reservations'),
     path('clubs/<int:club_id>/', views.get_club, name='get_club'),
     path('reservations/', views.get_all_player_reservations, name='get_all_player_reservations'),
+    path('reservations/history/', views.get_reservation_history, name='get_reservation_history'),
     path('reservations/<int:reservation_id>/', views.delete_reservation, name='delete_reservation'),
     path('reviews/', views.create_review, name='create_review'),
     path('reviews/user/<int:user_id>/', views.get_reviews_by_user, name='get_reviews_by_user'),
     path('reviews/club/<int:club_id>/', views.get_reviews_by_club, name='get_reviews_by_club'),
     path('reviews/<int:review_id>/', views.delete_review, name='delete_review'),
+    # Notifications
+    path('notifications/', views.get_all_notifications, name='get_all_notifications'),
+    path('notifications/last/', views.get_last_notifications, name='get_last_notifications'),
+    path('notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
     # Admin endpoints
     path('admin/users/', admin_views.admin_list_users, name='admin_list_users'),
     path('admin/users/<int:user_id>/', admin_views.admin_get_user, name='admin_get_user'),

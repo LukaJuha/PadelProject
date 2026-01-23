@@ -19,8 +19,12 @@ function Management() {
   });
 
   useEffect(() => {
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'CLUB') {
+      navigate("/login");
+      return;
+    }
     fetchFields();
-  }, []);
+  }, [user?.authenticated, user?.role, navigate]);
 
   const fetchFields = async () => {
     try {

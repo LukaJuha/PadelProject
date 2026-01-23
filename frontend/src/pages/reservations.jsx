@@ -13,17 +13,29 @@ function Reservations() {
   const [reservations, setReservations] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentViewStart, setCurrentViewStart] = useState(null);
+  const [currentViewEnd, setCurrentViewEnd] = useState(null);
 
   const backendURL = (import.meta.env.MODE === 'development') ? 
     import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
   useEffect(() => {
-    fetchReservations();
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'PLAYER') {
+      navigate("/login");
+      return;
+    }
+    setLoading(false);
+    // Initial fetch will be triggered by datesSet callback
   }, []);
 
-  const fetchReservations = async () => {
+  const fetchReservations = async (startDate = null, endDate = null) => {
     try {
-      const res = await fetch(`${backendURL}/reservations/`, {
+      let url = `${backendURL}/reservations/`;
+      if (startDate && endDate) {
+        url += `?start_date=${startDate}&end_date=${endDate}`;
+      }
+
+      const res = await fetch(url, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${user?.accessToken}`,
@@ -38,11 +50,12 @@ function Reservations() {
         
         const events = reservationModels.map((reservation) => {
           const event = reservation.toCalendarEvent();
+          const isRepeating = Boolean(reservation.repeating);
           return {
             ...event,
-            title: `${reservation.fieldName} - ${reservation.bookingTitle}`,
-            backgroundColor: "#28a745",
-            borderColor: "#1e7e34"
+            title: `${reservation.fieldName} - ${reservation.bookingTitle}${isRepeating ? ' (ponavljajuća)' : ''}`,
+            backgroundColor: isRepeating ? "#fd7e14" : "#28a745",
+            borderColor: isRepeating ? "#e36209" : "#1e7e34"
           };
         });
         setCalendarEvents(events);
@@ -72,7 +85,10 @@ function Reservations() {
 
       if (res.ok) {
         alert("Rezervacija uspješno otkazana!");
-        fetchReservations();
+        // Re-fetch with current view dates
+        if (currentViewStart && currentViewEnd) {
+          fetchReservations(currentViewStart, currentViewEnd);
+        }
       } else {
         const data = await res.json();
         alert(data.error || "Greška pri otkazivanju rezervacije");
@@ -80,6 +96,20 @@ function Reservations() {
     } catch (error) {
       console.error("Error deleting reservation:", error);
       alert("Greška pri otkazivanju rezervacije");
+    }
+  };
+
+  const handleDatesSet = (dateInfo) => {
+    // Convert to YYYY-MM-DD format
+    const startDate = dateInfo.start.toISOString().split('T')[0];
+    const endDate = dateInfo.end.toISOString().split('T')[0];
+    
+    setCurrentViewStart(startDate);
+    setCurrentViewEnd(endDate);
+    
+    // Fetch reservations for the new date range
+    if (user?.authenticated) {
+      fetchReservations(startDate, endDate);
     }
   };
 
@@ -115,6 +145,7 @@ function Reservations() {
               right: 'dayGridMonth,timeGridWeek,timeGridDay'
             }}
             events={calendarEvents}
+            datesSet={handleDatesSet}
             slotLabelInterval="01:00"
             slotLabelFormat={{
               meridiem: false,
@@ -153,6 +184,11 @@ function Reservations() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <strong>{reservation.fieldName} - {reservation.bookingTitle}</strong>
+                        {reservation.repeating && (
+                          <span style={{ marginLeft: '8px', padding: '2px 6px', backgroundColor: '#fd7e14', color: 'white', borderRadius: '4px', fontSize: '11px' }}>
+                            Ponavljajuća
+                          </span>
+                        )}
                         <br />
                         <span style={{ color: '#666', fontSize: '14px' }}>
                           {dayNames[dayIndex]} {reservation.startTime}-{reservation.endTime}

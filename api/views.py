@@ -6,13 +6,16 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from .models import Player, Club, Admin, Field, Booking, Reservation, Review
+from .models import Player, Club, Admin, Field, Booking, Reservation, Review, Notification
 from django.db import connection
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db.models import Avg
+from django.utils import timezone
+from datetime import datetime, timedelta
+from .tasks import send_club_reservation_notification, send_player_reservation_reminder, move_reservation_to_history
 
 User = get_user_model()
 
@@ -917,11 +920,13 @@ def update_booking(request, field_id, booking_id):
         if 'title' in request.data:
             booking.title = request.data.get('title')
         if 'day_of_week' in request.data:
-            day_of_week = int(request.data.get('day_of_week'))
-            if not (0 <= day_of_week <= 6):
-                return Response({'error': 'day_of_week must be 0-6'}, 
-                               status=status.HTTP_400_BAD_REQUEST)
-            booking.day_of_week = day_of_week
+            day_of_week_value = request.data.get('day_of_week')
+            if day_of_week_value is not None:
+                day_of_week = int(day_of_week_value)
+                if not (0 <= day_of_week <= 6):
+                    return Response({'error': 'day_of_week must be 0-6'}, 
+                                   status=status.HTTP_400_BAD_REQUEST)
+                booking.day_of_week = day_of_week
         if 'start_time' in request.data:
             booking.start_time = request.data.get('start_time')
         if 'end_time' in request.data:
@@ -1151,6 +1156,7 @@ def reserve_booking(request, field_id):
         date = request.data.get('date')
         payment_method = request.data.get('payment_method', 'IN_PERSON')
         paypal_order_id = request.data.get('paypal_order_id')
+        repeating = bool(request.data.get('repeating', False))
         
         if not booking_id or not date:
             return Response({'error': 'booking_id and date are required'}, 
@@ -1170,9 +1176,19 @@ def reserve_booking(request, field_id):
         player = Player.objects.get(userid=user)
         booking = Booking.objects.get(id=booking_id, field_id=field_id)
         
-        # Check if already reserved for this specific date
-        if Reservation.objects.filter(booking=booking, player=player, date=date).exists():
-            return Response({'error': 'You have already reserved this booking for this date'}, 
+        # Block if any repeating reservation already owns this booking
+        if Reservation.objects.filter(booking=booking, repeating=True).exists():
+            return Response({'error': 'Ovaj termin je već trajno rezerviran.'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+
+        # Block repeats if any reservation already exists for this booking (any date)
+        if repeating and Reservation.objects.filter(booking=booking).exists():
+            return Response({'error': 'Termin već ima rezervacije pa ga nije moguće postaviti kao ponavljajući.'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the slot is already reserved for this date by anyone
+        if Reservation.objects.filter(booking=booking, date=date).exists():
+            return Response({'error': 'Termin je već rezerviran za odabrani datum.'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
         # Set payment status based on payment method
@@ -1182,9 +1198,54 @@ def reserve_booking(request, field_id):
             booking=booking,
             player=player,
             date=date,
+            repeating=repeating,
             payment_method=payment_method,
             payment_status=payment_status
         )
+        
+        print(f"DEBUG: Reservation created: {reservation.id}")
+        
+        # Send immediate notification to club¸
+        print("DEBUG: Sending club reservation notification task")
+        result = send_club_reservation_notification.delay(reservation.id)
+        print(f"DEBUG: Task sent with ID: {result.id}")
+        
+        # Schedule reminder 24h before the next occurrence of the booking
+        # Calculate next occurrence of the booking day
+        now = timezone.now()
+        current_weekday = now.weekday()
+        days_until_booking = (booking.day_of_week - current_weekday) % 7
+        if days_until_booking == 0:
+            # If today, check if the time has passed
+            booking_datetime = datetime.combine(now.date(), booking.start_time)
+            booking_datetime = timezone.make_aware(booking_datetime)
+            if booking_datetime <= now:
+                days_until_booking = 7  # Next week
+
+        next_booking_date = now.date() + timedelta(days_until_booking)
+        next_booking_datetime = datetime.combine(next_booking_date, booking.start_time)
+        next_booking_datetime = timezone.make_aware(next_booking_datetime)
+        
+        # Schedule reminder 24 hours before
+        reminder_time = next_booking_datetime - timedelta(hours=24)
+        
+        # Only schedule if reminder time is in the future
+        if reminder_time > now:
+            send_player_reservation_reminder.apply_async(
+                args=[reservation.id],
+                eta=reminder_time
+            )
+        
+        # Schedule archival for when the booking ends (only for non-repeating reservations)
+        if not reservation.repeating:
+            next_booking_end_datetime = datetime.combine(next_booking_date, booking.end_time)
+            next_booking_end_datetime = timezone.make_aware(next_booking_end_datetime)
+            
+            if next_booking_end_datetime > now:
+                move_reservation_to_history.apply_async(
+                    args=[reservation.id],
+                    eta=next_booking_end_datetime
+                )
         
         return Response({
             'message': 'Reservation created successfully',
@@ -1192,6 +1253,7 @@ def reserve_booking(request, field_id):
                 'id': reservation.id,
                 'booking_id': reservation.booking.id,
                 'booking_title': reservation.booking.title,
+                'repeating': reservation.repeating,
                 'date': reservation.date,
                 'payment_method': reservation.payment_method,
                 'payment_status': reservation.payment_status,
@@ -1236,6 +1298,7 @@ def get_field_reservations(request, field_id):
                 'day_of_week': res.booking.day_of_week,
                 'start_time': str(res.booking.start_time),
                 'end_time': str(res.booking.end_time),
+                'repeating': res.repeating,
             })
         
         return Response({'reservations': reservation_list}, status=status.HTTP_200_OK)
@@ -1250,8 +1313,9 @@ def get_field_reservations(request, field_id):
 @permission_classes([IsAuthenticated])
 def get_all_player_reservations(request):
     """
-    GET /reservations/
-    Returns all reservations for the authenticated player.
+    GET /reservations/?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+    Returns all reservations for the authenticated player, optionally filtered by date range.
+    Repeating reservations are always included.
     """
     user = request.user
     
@@ -1265,6 +1329,17 @@ def get_all_player_reservations(request):
             'booking__field__clubid__userid'
         )
         
+        # Filter by date range if provided (exclude repeating reservations from date filter)
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        
+        if start_date and end_date:
+            from django.db.models import Q
+            # Include: repeating reservations OR reservations within date range
+            reservations = reservations.filter(
+                Q(repeating=True) | Q(date__gte=start_date, date__lte=end_date)
+            )
+        
         reservation_list = []
         for res in reservations:
             reservation_list.append({
@@ -1274,10 +1349,12 @@ def get_all_player_reservations(request):
                 'day_of_week': res.booking.day_of_week,
                 'start_time': str(res.booking.start_time),
                 'end_time': str(res.booking.end_time),
+                'date': str(res.date),
                 'field_id': res.booking.field.id,
                 'field_name': res.booking.field.name,
                 'club_id': res.booking.field.clubid.userid.id,
                 'club_name': res.booking.field.clubid.userid.username,
+                'repeating': res.repeating,
             })
         
         return Response({'reservations': reservation_list}, status=status.HTTP_200_OK)
@@ -1285,6 +1362,7 @@ def get_all_player_reservations(request):
     except Player.DoesNotExist:
         return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
+        print(f"ERROR: {str(e)}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1490,5 +1568,102 @@ def delete_review(request, review_id):
         return Response({'message': 'Review deleted successfully'},
                         status=status.HTTP_200_OK)
 
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_last_notifications(request):
+    try:
+        count = int(request.GET.get('count', '5'))
+        notifications = Notification.objects.filter(userid=request.user).order_by('-created_at')[:count]
+        data = [
+            {
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'is_read': n.is_read,
+                'created_at': n.created_at
+            }
+            for n in notifications
+        ]
+        return Response({'notifications': data}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_notifications(request):
+    try:
+        notifications = Notification.objects.filter(userid=request.user).order_by('-created_at')
+        data = [
+            {
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'is_read': n.is_read,
+                'created_at': n.created_at
+            }
+            for n in notifications
+        ]
+        return Response({'count': len(data), 'notifications': data}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, userid=request.user)
+        notification.is_read = True
+        notification.save()
+        return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_reservation_history(request):
+    """Get all completed reservations for the current player"""
+    try:
+        user = request.user
+        
+        if user.role.upper() != 'PLAYER':
+            return Response({'error': 'Only players can view reservation history'}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        player = Player.objects.get(userid=user)
+        history = player.reservation_history.select_related(
+            'booking__field__clubid__userid'
+        ).all()
+        
+        data = []
+        for res in history:
+            data.append({
+                'id': res.id,
+                'booking_id': res.booking.id,
+                'booking_title': res.booking.title,
+                'field_id': res.booking.field.id,
+                'field_name': res.booking.field.name,
+                'club_id': res.booking.field.clubid.userid.id,
+                'club_name': res.booking.field.clubid.name,
+                'day_of_week': res.booking.day_of_week,
+                'start_time': res.booking.start_time.isoformat(),
+                'end_time': res.booking.end_time.isoformat(),
+                'booking_date': res.booking_date.isoformat(),
+                'payment_method': res.payment_method,
+                'payment_status': res.payment_status,
+                'created_at': res.created_at.isoformat(),
+                'completed_at': res.completed_at.isoformat(),
+            })
+        
+        return Response({'count': len(data), 'history': data}, status=status.HTTP_200_OK)
+    except Player.DoesNotExist:
+        return Response({'error': 'Player profile not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

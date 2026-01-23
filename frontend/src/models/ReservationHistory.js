@@ -1,4 +1,4 @@
-export class Reservation {
+export class ReservationHistory {
   static PAYMENT_METHODS = {
     IN_PERSON: 'IN_PERSON',
     PAYPAL: 'PAYPAL'
@@ -25,72 +25,37 @@ export class Reservation {
     this.id = data.id;
     this.bookingId = data.bookingId;
     this.bookingTitle = data.bookingTitle;
-    this.repeating = data.repeating ?? false;
-    this.playerId = data.playerId;
     this.fieldId = data.fieldId;
     this.fieldName = data.fieldName;
     this.clubId = data.clubId;
     this.clubName = data.clubName;
     this.dayOfWeek = data.dayOfWeek;
-    this.date = data.date;
     this.startTime = data.startTime;
     this.endTime = data.endTime;
-    this.createdAt = data.createdAt;
+    this.bookingDate = data.bookingDate;
     this.paymentMethod = data.paymentMethod;
     this.paymentStatus = data.paymentStatus;
+    this.createdAt = data.createdAt;
+    this.completedAt = data.completedAt;
   }
 
   static fromAPI(apiData) {
-    return new Reservation({
+    return new ReservationHistory({
       id: apiData.id,
       bookingId: apiData.booking_id || apiData.bookingId,
       bookingTitle: apiData.booking_title || apiData.bookingTitle,
-      repeating: apiData.repeating ?? false,
-      playerId: apiData.player || apiData.playerId,
       fieldId: apiData.field_id || apiData.fieldId,
       fieldName: apiData.field_name || apiData.fieldName,
       clubId: apiData.club_id || apiData.clubId,
       clubName: apiData.club_name || apiData.clubName,
       dayOfWeek: apiData.day_of_week ?? apiData.dayOfWeek,
-      date: apiData.date,
       startTime: apiData.start_time || apiData.startTime,
       endTime: apiData.end_time || apiData.endTime,
-      createdAt: apiData.created_at || apiData.createdAt,
+      bookingDate: apiData.booking_date || apiData.bookingDate,
       paymentMethod: apiData.payment_method || apiData.paymentMethod,
-      paymentStatus: apiData.payment_status || apiData.paymentStatus
+      paymentStatus: apiData.payment_status || apiData.paymentStatus,
+      createdAt: apiData.created_at || apiData.createdAt,
+      completedAt: apiData.completed_at || apiData.completedAt
     });
-  }
-
-  toCalendarEvent() {
-    // Repeating reservations use daysOfWeek with startTime/endTime to show on all weeks
-    if (this.repeating) {
-      return {
-        id: this.id,
-        title: this.bookingTitle,
-        daysOfWeek: [this.dayOfWeek],
-        startTime: this.startTime,
-        endTime: this.endTime,
-        extendedProps: {
-          clubId: this.clubId,
-          fieldId: this.fieldId,
-          clubName: this.clubName,
-          fieldName: this.fieldName
-        }
-      };
-    }
-
-    // Non-repeating reservations use specific start/end dates
-    return {
-      id: this.id,
-      title: this.bookingTitle,
-      start: `${this.date}T${this.startTime}`,
-      end: `${this.date}T${this.endTime}`,
-      extendedProps: {
-        clubId: this.clubId,
-        fieldId: this.fieldId,
-        clubName: this.clubName,
-        fieldName: this.fieldName
-      }
-    };
   }
 }

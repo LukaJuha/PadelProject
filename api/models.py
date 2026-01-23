@@ -179,6 +179,7 @@ class Reservation(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='reservations')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='reservations')
     date = models.DateField(db_column='date')
+    repeating = models.BooleanField(default=False, db_column='repeating')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='IN_PERSON', db_column='paymentMethod')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='PENDING', db_column='paymentStatus')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -189,6 +190,25 @@ class Reservation(models.Model):
     
     def __str__(self):
         return f"{self.player.userid.username} - {self.booking.title} on {self.date}"
+
+
+class ReservationHistory(models.Model):
+    """Archive of completed reservations for player history"""
+    id = models.AutoField(primary_key=True)
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='history')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='reservation_history')
+    booking_date = models.DateField(db_column='bookingDate')  # The date the booking occurred
+    payment_method = models.CharField(max_length=20, choices=Reservation.PAYMENT_METHODS, default='IN_PERSON', db_column='paymentMethod')
+    payment_status = models.CharField(max_length=20, choices=Reservation.PAYMENT_STATUS, default='PENDING', db_column='paymentStatus')
+    created_at = models.DateTimeField(db_column='createdAt')  # When reservation was made
+    completed_at = models.DateTimeField(auto_now_add=True, db_column='completedAt')  # When booking ended and archived
+    
+    class Meta:
+        db_table = 'reservation_history'
+        ordering = ['-booking_date']
+    
+    def __str__(self):
+        return f"History: {self.player.userid.username} - {self.booking.title} on {self.booking_date}"
 
 
 class Review(models.Model):
@@ -205,3 +225,19 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.userid.username} for {self.clubid.username} - {self.rating}/5.00"
+
+
+class Notification(models.Model):
+    id = models.AutoField(primary_key=True)
+    userid = models.ForeignKey(User, on_delete=models.CASCADE, db_column='userId', related_name='notifications')
+    title = models.CharField(max_length=100, db_column='title')
+    message = models.TextField(db_column='message')
+    is_read = models.BooleanField(default=False, db_column='isRead')
+    created_at = models.DateTimeField(auto_now_add=True, db_column='createdAt')
+
+    class Meta:
+        db_table = 'notification'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification for {self.userid.username}: {self.title}"

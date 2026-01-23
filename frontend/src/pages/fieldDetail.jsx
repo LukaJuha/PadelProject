@@ -30,9 +30,13 @@ function FieldDetail() {
     import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
   useEffect(() => {
+    if (!user?.authenticated || user?.role?.toUpperCase() !== 'CLUB') {
+      navigate("/login");
+      return;
+    }
     fetchFieldData();
     fetchBookings();
-  }, [fieldId]);
+  }, [fieldId, user?.authenticated, user?.role, navigate]);
 
   const fetchFieldData = async () => {
     try {
