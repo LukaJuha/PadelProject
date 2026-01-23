@@ -12,6 +12,7 @@ DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 MIDDLEWARE = [
+    'backend.cors_middleware.PreflightCorsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
