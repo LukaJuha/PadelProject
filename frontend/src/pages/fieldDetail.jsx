@@ -474,6 +474,7 @@ function FieldDetail() {
             plugins={[timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
             headerToolbar={false}
+            firstDay={1}
             events={bookings}
             slotLabelInterval="01:00"
             slotLabelFormat={{

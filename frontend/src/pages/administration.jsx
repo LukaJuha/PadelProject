@@ -1007,6 +1007,7 @@ export default function Administration() {
                         center: '',
                         right: ''
                       }}
+                      firstDay={1}
                       allDaySlot={false}
                       slotMinTime="06:00:00"
                       slotMaxTime="23:00:00"
@@ -1015,9 +1016,9 @@ export default function Administration() {
                       events={fieldBookings.map(booking => ({
                         id: booking.id,
                         title: booking.title,
-                        daysOfWeek: [booking.day_of_week],
-                        startTime: booking.start_time,
-                        endTime: booking.end_time,
+                        daysOfWeek: [booking.dayOfWeek],
+                        startTime: booking.startTime,
+                        endTime: booking.endTime,
                         extendedProps: {
                           bookingData: booking
                         }

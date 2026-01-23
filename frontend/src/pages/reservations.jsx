@@ -147,8 +147,9 @@ function Reservations() {
             headerToolbar={{
               left: 'prev,next today',
               center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              right: ''
             }}
+            firstDay={1}
             events={calendarEvents}
             datesSet={handleDatesSet}
             slotLabelInterval="01:00"

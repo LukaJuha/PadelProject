@@ -459,6 +459,7 @@ function PublicFieldView() {
               center: 'title',
               right: ''
             }}
+            firstDay={1}
             datesSet={handleDatesSet}
             events={coloredEvents}
             eventDidMount={handleEventDidMount}
