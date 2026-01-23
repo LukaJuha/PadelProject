@@ -12,6 +12,7 @@ DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 MIDDLEWARE = [
+    'backend.cors_middleware.PreflightCorsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -27,9 +28,33 @@ CORS_ALLOWED_ORIGINS = [
     'https://padelprojectfrontend.onrender.com',
     FRONTEND_URL,
 ]
+## Be flexible with Render subdomains
+CORS_ALLOWED_ORIGIN_REGEXES = [r'^https:\/\/.*onrender\.com$']
 
 # Allow cookies/credentials if frontend uses them
 CORS_ALLOW_CREDENTIALS = True
+
+# TEMP: Broaden CORS during debugging; tighten once confirmed
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 STORAGES = {
     "default": {
