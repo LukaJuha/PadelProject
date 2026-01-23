@@ -254,7 +254,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri otkazivanju rezervacije");
       }
-    } catch (err) {
+    } catch {
       setError("Greška pri otkazivanju rezervacije");
     }
   };
@@ -332,7 +332,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri brisanju terena");
       }
-    } catch (err) {
+    } catch {
       setError("Greška pri brisanju terena");
     }
   };
@@ -359,7 +359,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || "Greška pri brisanju bookinga");
       }
-    } catch (err) {
+    } catch {
       setError("Greška pri brisanju bookinga");
     }
   };
@@ -402,7 +402,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || 'Greška pri ažuriranju terena');
       }
-    } catch (err) {
+    } catch {
       setError('Greška pri ažuriranju terena');
     }
   };
@@ -432,7 +432,7 @@ export default function Administration() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         setSuccessMessage('Booking uspješno ažuriran!');
         setEditingBooking(null);
         // Refresh the bookings list
@@ -443,7 +443,7 @@ export default function Administration() {
         const data = await response.json();
         setError(data.error || 'Greška pri ažuriranju bookinga');
       }
-    } catch (err) {
+    } catch {
       setError('Greška pri ažuriranju bookinga');
     }
   };
