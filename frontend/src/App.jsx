@@ -14,10 +14,14 @@ import Reservations from "./pages/reservations.jsx";
 import ReservationHistoryPage from "./pages/reservationHistory.jsx";
 import NotificationsPage from "./pages/notifications.jsx";
 import Administration from "./pages/administration.jsx";
+import ClubOffers from "./pages/clubOffers.jsx";
+import PlayerOffers from "./pages/playerOffers.jsx";
+import MyActiveOffers from "./pages/myActiveOffers.jsx";
 import { UserProvider } from "./user-context.jsx";
 import { useContext, useEffect, useState  } from "react";
 import UserContext from "./user-context.jsx";
 import { useNavigate } from "react-router-dom";
+import { getBackendURL } from './utils/api';
 
 function App() {
   return (
@@ -47,6 +51,11 @@ function App() {
             <Route path="/reviews/:clubId" element={<Reviews />} />
             <Route path="/reviews/user/:userId" element={<UserReviews />} />
             <Route path="/club/:clubId/field/:fieldId" element={<PublicFieldView />} />
+            <Route path="/club/:clubId/offers" element={<PlayerOffers />} />
+            <Route
+              path="/offers"
+              element={<ClubOffers />}
+            />
             <Route
               path="/reservations"
               element={<Reservations />}
@@ -64,6 +73,7 @@ function App() {
               element={<NotificationsPage />}
             />
             <Route path="/search" element={<Search />} />
+            <Route path="/my-active-offers" element={<MyActiveOffers />} />
           </Routes>
         </main>
       </Router>
@@ -89,7 +99,7 @@ function AppContent() {
         refresh: user.refreshToken,
       };
 
-      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       const res = await fetch(backendURL + "/auth/logout/", {
         method: "POST",
         headers: {
@@ -143,7 +153,7 @@ function AppContent() {
             <button
               aria-label="Notifikacije"
               onClick={async () => {
-                const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+                const backendURL = getBackendURL();
                 try {
                   const res = await fetch(backendURL + "/notifications/last/?count=5", {
                     headers: { "Authorization": `Bearer ${user?.accessToken}` }
@@ -160,7 +170,10 @@ function AppContent() {
               <img src="/notification.png" alt="notifikacije" style={{ height: '1.6em' }} />
             </button>
             {user?.role?.toUpperCase() === 'CLUB' && (
-              <Link to="/management" style={styles.navButton}>Upravljanje</Link>
+              <>
+                <Link to="/management" style={styles.navButton}>Upravljanje</Link>
+                <Link to="/offers" style={styles.navButton}>Ponude</Link>
+              </>
             )}
             {user?.role?.toUpperCase() === 'PLAYER' && (
               <Link to="/reservations" style={styles.navButton}>Rezervacije</Link>

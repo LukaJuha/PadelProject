@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import { Player, Club, Admin } from "../models";
 import "./styles/profile.css";
+import { getBackendURL } from '../utils/api';
 
 function Profile() {
   const [user, setUser] = useContext(UserContext);
@@ -22,7 +23,7 @@ function Profile() {
 
     const getProfileData = async () => {
       try {
-        const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+        const backendURL = getBackendURL();
         const res = await fetch(backendURL + "/auth/user/", {
           method: "GET",
           headers: {
@@ -136,7 +137,7 @@ function Profile() {
         };
       }
             
-      const backendURL = (import.meta.env.MODE === 'development') ? import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
             const res = await fetch(backendURL + "/auth/user/update/", {
               method: "PATCH",
               headers: {
@@ -294,6 +295,30 @@ function Profile() {
                     </span>
                 </div>
                 </>
+            )}
+
+            {user.role.toUpperCase() === "PLAYER" && (
+                <div style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
+                    <h3>Moje Pretplate i Tutorstva</h3>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/my-active-offers')}
+                        style={{
+                            padding: "8px 16px",
+                            backgroundColor: "#28a745",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                        }}
+                    >
+                        <img src="/crown.png" alt="offers" style={{ width: '16px', height: '16px' }} />                       
+                    </button>
+                </div>
             )}
 
             {user.role.toUpperCase() === "PLAYER" && (

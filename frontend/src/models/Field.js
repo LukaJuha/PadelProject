@@ -52,6 +52,7 @@ export class Field {
     this.location = data.location;
     this.ceilingHeight = data.ceilingHeight;
     this.lighting = data.lighting;
+    this.reservationFee = data.reservationFee;
   }
 
   static fromAPI(apiData) {
@@ -64,7 +65,8 @@ export class Field {
       size: apiData.size,
       location: apiData.location,
       ceilingHeight: apiData.ceiling_height ?? apiData.ceilingHeight,
-      lighting: apiData.lighting
+      lighting: apiData.lighting,
+      reservationFee: apiData.reservation_fee ?? apiData.reservationFee ?? 0
     });
   }
 
@@ -75,7 +77,8 @@ export class Field {
       size: this.size,
       location: this.location,
       ceiling_height: this.ceilingHeight,
-      lighting: this.lighting
+      lighting: this.lighting,
+      reservation_fee: this.reservationFee
     };
   }
 }

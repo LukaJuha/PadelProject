@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import "./styles/login.css";
 import GoogleLoginButton from "../components/googleOAuthButton";
+import { getBackendURL } from '../utils/api';
 
 function Login() {
   const [user, setUser] = useContext(UserContext);
@@ -19,7 +20,7 @@ function Login() {
         role: role.toUpperCase(),
       };
 
-      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       const res = await fetch(backendURL + "/auth/google/register/", {
         method: "POST",
         headers: {
@@ -63,7 +64,7 @@ function Login() {
       };
 
       setLoading(true);
-      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       const res = await fetch(backendURL + "/auth/login/", {
         method: "POST",
         headers: {

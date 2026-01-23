@@ -5,6 +5,7 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import { Reservation } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function Reservations() {
   const [user] = useContext(UserContext);
@@ -15,9 +16,6 @@ function Reservations() {
   const [loading, setLoading] = useState(true);
   const [currentViewStart, setCurrentViewStart] = useState(null);
   const [currentViewEnd, setCurrentViewEnd] = useState(null);
-
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
   useEffect(() => {
     if (!user?.authenticated || user?.role?.toUpperCase() !== 'PLAYER') {
@@ -30,6 +28,7 @@ function Reservations() {
 
   const fetchReservations = async (startDate = null, endDate = null) => {
     try {
+      const backendURL = getBackendURL();
       let url = `${backendURL}/reservations/`;
       if (startDate && endDate) {
         url += `?start_date=${startDate}&end_date=${endDate}`;
@@ -76,6 +75,7 @@ function Reservations() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/reservations/${reservationId}/`, {
         method: "DELETE",
         headers: {
@@ -84,7 +84,9 @@ function Reservations() {
       });
 
       if (res.ok) {
-        alert("Rezervacija uspješno otkazana!");
+        const data = await res.json();
+        const refundAmount = data.refund_amount || 0;
+        alert(`Rezervacija uspješno otkazana!\nPovrat novca: ${refundAmount.toFixed(2)}€`);
         // Re-fetch with current view dates
         if (currentViewStart && currentViewEnd) {
           fetchReservations(currentViewStart, currentViewEnd);

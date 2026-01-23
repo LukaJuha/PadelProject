@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import { Club, Field } from "../models";
+import { getBackendURL } from '../utils/api';
 
 
 function ClubProfile() {
@@ -13,15 +14,13 @@ function ClubProfile() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
     fetchClubData();
   }, [clubId]);
 
   const fetchClubData = async () => {
     try {
+      const backendURL = getBackendURL();
       const headers = {};
       if (user?.accessToken) {
         headers["Authorization"] = `Bearer ${user.accessToken}`;
@@ -65,13 +64,21 @@ function ClubProfile() {
             {club.email || "Email nije dostupan"}
           </p>
         </div>
-        <button
-          style={styles.reviewsButton}
-          onClick={() => navigate(`/reviews/${clubId}`)}
-        >
-          <img src="/star.png" alt="star" style={{ width: '18px', height: '18px', marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} />
-          Vidi Recenzije
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            style={styles.offersButton}
+            onClick={() => navigate(`/club/${clubId}/offers`)}
+          >
+            Ponude Kluba
+          </button>
+          <button
+            style={styles.reviewsButton}
+            onClick={() => navigate(`/reviews/${clubId}`)}
+          >
+            <img src="/star.png" alt="star" style={{ width: '18px', height: '18px', marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} />
+            Vidi Recenzije
+          </button>
+        </div>
       </div>
 
       <div style={styles.section}>
@@ -181,6 +188,15 @@ const styles = {
   reviewsButton: {
     padding: "8px 16px",
     backgroundColor: "#28a745",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  offersButton: {
+    padding: "8px 16px",
+    backgroundColor: "#007bff",
     color: "white",
     border: "none",
     borderRadius: "4px",

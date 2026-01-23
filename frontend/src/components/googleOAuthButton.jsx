@@ -3,6 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import { useNavigate } from "react-router-dom";
 import { useContext, useEffect } from "react";
 import UserContext from "../user-context";
+import { getBackendURL } from '../utils/api';
 
 export default function GoogleLoginButton({ user, setUser }) {
   const [globalUser, setGlobalUser] = useContext(UserContext);
@@ -21,7 +22,7 @@ export default function GoogleLoginButton({ user, setUser }) {
         onSuccess={async (res) => {
           const credential = res.credential;
 
-          const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+          const backendURL = getBackendURL();
           const checkRes = await fetch(backendURL + "/auth/google/check/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -32,7 +33,7 @@ export default function GoogleLoginButton({ user, setUser }) {
 
           if (checkRes.ok) {
             if (data.exists) {
-              const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+              const backendURL = getBackendURL();
               const loginRes = await fetch(backendURL + "/auth/google/login/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

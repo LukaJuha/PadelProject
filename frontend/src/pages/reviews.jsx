@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context.jsx";
 import { Review } from "../models/Review";
+import { getBackendURL } from '../utils/api';
 
 
 function Reviews() {
@@ -17,8 +18,6 @@ function Reviews() {
   const [rating, setRating] = useState(5);
   const [submitting, setSubmitting] = useState(false);
 
-  const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
     fetchReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -28,6 +27,7 @@ function Reviews() {
     setLoading(true);
     setError(null);
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/reviews/club/${clubId}/`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
@@ -51,6 +51,7 @@ function Reviews() {
 
     setSubmitting(true);
     try {
+      const backendURL = getBackendURL();
       const payload = {
         club_id: parseInt(clubId, 10),
         comment: comment.trim(),

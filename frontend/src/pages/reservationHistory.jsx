@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context.jsx";
 import { ReservationHistory } from "../models/ReservationHistory.js";
+import { getBackendURL } from '../utils/api';
 
 function ReservationHistoryPage() {
   const [user] = useContext(UserContext);
@@ -9,11 +10,6 @@ function ReservationHistoryPage() {
 
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const backendURL =
-    import.meta.env.MODE === "development"
-      ? import.meta.env.VITE_API_BASE_URL_LOCAL
-      : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
   useEffect(() => {
     // Wait for user context to hydrate, then guard and fetch
@@ -25,6 +21,7 @@ function ReservationHistoryPage() {
 
   const fetchHistory = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/reservations/history/`, {
         method: "GET",
         headers: {

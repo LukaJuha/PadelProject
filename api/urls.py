@@ -32,6 +32,7 @@ urlpatterns = [
     path('reservations/', views.get_all_player_reservations, name='get_all_player_reservations'),
     path('reservations/history/', views.get_reservation_history, name='get_reservation_history'),
     path('reservations/<int:reservation_id>/', views.delete_reservation, name='delete_reservation'),
+    path('reservations/<int:reservation_id>/approve/', views.approve_reservation, name='approve_reservation'),
     path('reviews/', views.create_review, name='create_review'),
     path('reviews/user/<int:user_id>/', views.get_reviews_by_user, name='get_reviews_by_user'),
     path('reviews/club/<int:club_id>/', views.get_reviews_by_club, name='get_reviews_by_club'),
@@ -55,4 +56,10 @@ urlpatterns = [
     path('admin/fields/<int:field_id>/update/', admin_views.admin_update_field, name='admin_update_field'),    
     path('admin/reviews/<int:review_id>/delete/', admin_views.admin_delete_review, name='admin_delete_review'),
     path('admin/statistics/', admin_views.admin_statistics, name='admin_statistics'),
+    # Offers endpoints
+    path('offers/create/', views.create_offer, name='create_offer'),
+    path('offers/<int:offer_id>/', views.delete_offer, name='delete_offer'),
+    path('offers/<int:offer_id>/purchase/', views.purchase_offer, name='purchase_offer'),
+    path('clubs/<int:club_id>/offers/', views.get_club_offers, name='get_club_offers'),
+    path('player/offers/', views.get_player_offers, name='get_player_offers'),
 ]

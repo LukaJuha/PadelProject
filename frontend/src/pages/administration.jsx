@@ -5,6 +5,7 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { User, Player, Club, Admin, Field, Booking, Reservation } from "../models";
+import { getBackendURL } from '../utils/api';
 
 export default function Administration() {
   const [user] = useContext(UserContext);
@@ -46,23 +47,19 @@ export default function Administration() {
     end_time: ''
   });
 
-  const backendURL =
-    import.meta.env.MODE === "development"
-      ? import.meta.env.VITE_API_BASE_URL_LOCAL
-      : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
     if (!user?.authenticated || user?.role?.toUpperCase() !== 'ADMIN') {
       navigate("/login");
       return;
     }
-  }, [user?.authenticated, user?.role, navigate]);
+  }, []);
 
   // Fetch users based on search criteria
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
     try {
+      const backendURL = getBackendURL();
       const params = new URLSearchParams();
       if (searchTerm) params.append("search", searchTerm);
       if (roleFilter) params.append("role", roleFilter);
@@ -148,6 +145,7 @@ export default function Administration() {
     setError("");
     setSuccessMessage("");
     try {
+      const backendURL = getBackendURL();
       // For ADMIN users, need different field mapping
       const dataToSend = { ...editFormData };
 
@@ -186,6 +184,7 @@ export default function Administration() {
     setError("");
     setSuccessMessage("");
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(
         `${backendURL}/admin/users/${selectedUser.id}/delete/`,
         {
@@ -214,6 +213,7 @@ export default function Administration() {
   const fetchPlayerReservations = async (playerId) => {
     setLoadingReservations(true);
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/users/${playerId}/reservations/`, {
         method: "GET",
         headers: {
@@ -239,6 +239,7 @@ export default function Administration() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/reservations/${reservationId}/`, {
         method: "DELETE",
         headers: {
@@ -262,6 +263,7 @@ export default function Administration() {
   const fetchClubFields = async (clubId) => {
     setLoadingFields(true);
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/users/${clubId}/fields/`, {
         method: "GET",
         headers: {
@@ -283,6 +285,7 @@ export default function Administration() {
   // Fetch field bookings
   const fetchFieldBookings = async (fieldId) => {
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/fields/${fieldId}/bookings/`, {
         method: "GET",
         headers: {
@@ -312,6 +315,7 @@ export default function Administration() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/fields/${fieldId}/`, {
         method: "DELETE",
         headers: {
@@ -340,6 +344,7 @@ export default function Administration() {
     }
 
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/bookings/${bookingId}/`, {
         method: "DELETE",
         headers: {
@@ -375,6 +380,7 @@ export default function Administration() {
   // Update field
   const handleUpdateField = async () => {
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/fields/${editingField.id}/update/`, {
         method: 'PUT',
         headers: {
@@ -415,6 +421,7 @@ export default function Administration() {
   // Update booking
   const handleUpdateBooking = async () => {
     try {
+      const backendURL = getBackendURL();
       const response = await fetch(`${backendURL}/admin/bookings/${editingBooking.id}/update/`, {
         method: 'PUT',
         headers: {

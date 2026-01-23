@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { SearchFilter } from "../models/SearchFilter";
 import SearchFilters from "../components/searchFilters";
 import { Club, Field } from "../models";
+import { getBackendURL } from '../utils/api';
 
 
 function Search() {
@@ -57,7 +58,7 @@ function Search() {
     setLoading(true);
     setError(null);
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/search/?${params.toString()}`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();

@@ -6,6 +6,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import { PayPalButtons } from "@paypal/react-paypal-js";
 import { Field, Booking, Reservation } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function PublicFieldView() {
   const [user] = useContext(UserContext);
@@ -15,6 +16,7 @@ function PublicFieldView() {
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
+  const [rawBookings, setRawBookings] = useState([]);
   const [showReserveForm, setShowReserveForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [reservations, setReservations] = useState([]);
@@ -23,10 +25,8 @@ function PublicFieldView() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [isCurrentWeek, setIsCurrentWeek] = useState(true);
   const [currentViewStart, setCurrentViewStart] = useState(null);
+  const [showSubscriptions, setShowSubscriptions] = useState({});
   const calendarRef = useRef(null);
-
-  const backendURL = (import.meta.env.MODE === 'development') ? 
-    import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
 
   useEffect(() => {
     fetchFieldData();
@@ -36,6 +36,7 @@ function PublicFieldView() {
 
   const fetchFieldData = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/public/`, {
         method: "GET",
       });
@@ -57,10 +58,12 @@ function PublicFieldView() {
 
   const fetchBookings = async () => {
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/bookings/public/`);
 
       if (res.ok) {
         const data = await res.json();
+        setRawBookings(data.bookings || []);
         const bookingModels = (data.bookings || []).map(b => Booking.fromAPI(b));
         const events = bookingModels.map((booking) => {
           const dayOfWeek = booking.dayOfWeek === 0 ? 6 : booking.dayOfWeek - 1;
@@ -73,6 +76,10 @@ function PublicFieldView() {
             endTime: booking.endTime,
             backgroundColor: "#28a745",
             borderColor: "#1e7e34",
+            extendedProps: {
+              price: booking.price,
+              subscriptionOnly: booking.subscriptionOnly
+            }
           };
         });
         setBookings(events);
@@ -86,6 +93,7 @@ function PublicFieldView() {
     if (!user?.accessToken) return;
 
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/fields/${fieldId}/reservations/`, {
         method: "GET",
         headers: {
@@ -141,7 +149,12 @@ function PublicFieldView() {
     }
 
     const bookingDate = computeDateForBooking(booking);
-    setSelectedBooking({ ...booking, date: bookingDate });
+    setSelectedBooking({ 
+      ...booking, 
+      date: bookingDate,
+      subscriptions: rawBookings.find(b => b.id === booking.id)?.subscriptions || [],
+      subscription_only: rawBookings.find(b => b.id === booking.id)?.subscription_only || false
+    });
     setRepeating(false);
     setShowReserveForm(true);
   };
@@ -161,11 +174,12 @@ function PublicFieldView() {
       return;
     }
 
-    // Create booking object with selected date
+    // Create booking object with selected date - use event.extendedProps for price
     const booking = {
       id: event.id,
       title: event.title,
-      date: eventDate.toISOString().split('T')[0]
+      date: eventDate.toISOString().split('T')[0],
+      price: event.extendedProps?.price || 0
     };
 
     setSelectedBooking(booking);
@@ -187,6 +201,7 @@ function PublicFieldView() {
 
   const createReservation = async (paymentMethodValue, paypalOrderId = null) => {
     try {
+      const backendURL = getBackendURL();
       if (!selectedBooking || !selectedBooking.date) {
         alert('Molimo odaberite konkretan datum termina na kalendaru prije rezervacije.');
         return;
@@ -305,22 +320,58 @@ function PublicFieldView() {
                 const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
                 const dayIndex = booking.daysOfWeek[0] === 6 ? 0 : booking.daysOfWeek[0] + 1;
                 const isReserved = reservations.some(r => r.booking_id === booking.id);
+                const rawBooking = rawBookings.find(b => b.id === booking.id);
+                const hasSubscriptions = rawBooking && rawBooking.subscriptions && rawBooking.subscriptions.length > 0;
                 
                 return (
                   <li key={booking.id} style={styles.bookingItem}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
-                        {isReserved && <span style={{ color: '#28a745', marginLeft: '10px' }}>(Rezervirano)</span>}
-                      </span>
-                      {!isReserved && user?.role === 'PLAYER' && (
-                        <button
-                          type="button"
-                          style={{ ...styles.button, padding: '5px 10px', fontSize: '12px', backgroundColor: '#28a745' }}
-                          onClick={() => handleReserveBooking(booking)}
-                        >
-                          Rezerviraj
-                        </button>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>{booking.title}</strong> - {dayNames[dayIndex]} {booking.startTime}-{booking.endTime}
+                          {isReserved && <span style={{ color: '#28a745', marginLeft: '10px' }}>(Rezervirano)</span>}
+                          {rawBooking.subscription_only && (
+                            <span style={{ color: '#ff6b6b', marginLeft: '10px', fontSize: '12px' }}>
+                              ⚠️ Samo za pretplatnike
+                            </span>
+                          )}
+                          <div style={{ fontSize: '14px', color: '#666', marginTop: '3px' }}>
+                            Cijena: <strong>{parseFloat(booking.price || 0).toFixed(2)}€</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          {hasSubscriptions && (
+                            <button
+                              type="button"
+                              style={styles.crownButton}
+                              onClick={() => setShowSubscriptions(prev => ({ ...prev, [booking.id]: !prev[booking.id] }))}
+                              title="Prikaži pretplate"
+                            >
+                              <img src="/crown.png" alt="pretplate" style={{ width: '20px', height: '20px' }} />
+                            </button>
+                          )}
+                          {!isReserved && user?.role === 'PLAYER' && (
+                            <button
+                              type="button"
+                              style={{ ...styles.button, padding: '5px 10px', fontSize: '12px', backgroundColor: '#28a745' }}
+                              onClick={() => handleReserveBooking(booking)}
+                            >
+                              Rezerviraj
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {showSubscriptions[booking.id] && hasSubscriptions && (
+                        <div style={styles.subscriptionsList}>
+                          <strong>Pretplate s popustom:</strong>
+                          <ul style={{ marginTop: '5px', marginLeft: '20px' }}>
+                            {rawBooking.subscriptions.map(sub => (
+                              <li key={sub.id} style={{ marginBottom: '5px' }}>
+                                {sub.name} - <span style={{ color: '#28a745', fontWeight: 'bold' }}>{sub.discount_percentage}% popust</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                     </div>
                   </li>
@@ -347,6 +398,23 @@ function PublicFieldView() {
               <p style={{ marginBottom: '15px' }}>
                 Sigurno želite rezervirati <strong>{selectedBooking.title}</strong>?
               </p>
+
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', textAlign: 'center' }}>
+                <strong style={{ fontSize: '18px', color: '#28a745' }}>Cijena: {selectedBooking.price?.toFixed(2)}€</strong>
+              </div>
+
+              {selectedBooking.subscription_only && selectedBooking.subscriptions && selectedBooking.subscriptions.length > 0 && (
+                <div style={{ marginBottom: '15px', padding: '12px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px' }}>
+                  <div style={{ fontWeight: 'bold', color: '#856404', marginBottom: '8px' }}>
+                    ⚠️ Ovaj termin zahtijeva jednu od sljedećih pretplata:
+                  </div>
+                  <ul style={{ margin: '0', paddingLeft: '20px', color: '#856404' }}>
+                    {selectedBooking.subscriptions.map(sub => (
+                      <li key={sub.id}>{sub.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div style={{ marginBottom: '16px', textAlign: 'left' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -404,10 +472,11 @@ function PublicFieldView() {
                     style={{ layout: 'vertical' }}
                     createOrder={(data, actions) => {
                       setProcessingPayment(true);
+                      const price = selectedBooking?.price ? parseFloat(selectedBooking.price).toFixed(2) : '0.00';
                       return actions.order.create({
                         purchase_units: [{
                           amount: {
-                            value: '10.00', // You can make this dynamic based on booking price
+                            value: price,
                             currency_code: 'EUR'
                           },
                           description: `Rezervacija: ${selectedBooking.title}`
@@ -531,9 +600,23 @@ const styles = {
     padding: "10px",
     borderBottom: "1px solid #dee2e6",
     listStyleType: "none",
+  },
+  crownButton: {
+    padding: "5px 10px",
+    backgroundColor: "#ffc107",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "center",
+  },
+  subscriptionsList: {
+    marginTop: "10px",
+    padding: "10px",
+    backgroundColor: "#f8f9fa",
+    borderRadius: "4px",
+    fontSize: "14px",
   },
   modalOverlay: {
     position: "fixed",

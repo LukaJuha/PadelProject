@@ -17,7 +17,9 @@ export class Booking {
     this.dayOfWeek = data.dayOfWeek;
     this.startTime = data.startTime;
     this.endTime = data.endTime;
+    this.price = data.price;
     this.hasReservation = data.hasReservation;
+    this.subscriptionOnly = data.subscriptionOnly;
   }
 
   static fromAPI(apiData) {
@@ -28,7 +30,9 @@ export class Booking {
       dayOfWeek: apiData.day_of_week ?? apiData.dayOfWeek,
       startTime: apiData.start_time || apiData.startTime,
       endTime: apiData.end_time || apiData.endTime,
-      hasReservation: apiData.has_reservation ?? apiData.hasReservation ?? false
+      price: apiData.price || 0,
+      hasReservation: apiData.has_reservation ?? apiData.hasReservation ?? false,
+      subscriptionOnly: apiData.subscription_only ?? apiData.subscriptionOnly ?? false
     });
   }
 
@@ -37,7 +41,9 @@ export class Booking {
       title: this.title,
       day_of_week: this.dayOfWeek,
       start_time: this.startTime,
-      end_time: this.endTime
+      end_time: this.endTime,
+      price: this.price,
+      subscription_only: this.subscriptionOnly
     };
   }
 }

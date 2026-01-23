@@ -4,6 +4,7 @@ export class Notification {
     this.title = data.title;
     this.message = data.message;
     this.isRead = data.isRead ?? data.is_read;
+    this.reservationId = data.reservationId ?? data.reservation_id;
     this.createdAt = data.createdAt ?? data.created_at;
   }
 
@@ -13,6 +14,7 @@ export class Notification {
       title: api.title,
       message: api.message,
       isRead: api.is_read,
+      reservationId: api.reservation_id,
       createdAt: api.created_at,
     });
   }

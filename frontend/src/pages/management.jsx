@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UserContext from "../user-context";
 import { Field } from "../models";
+import { getBackendURL } from '../utils/api';
 
 function Management() {
   const [user] = useContext(UserContext);
@@ -24,12 +25,11 @@ function Management() {
       return;
     }
     fetchFields();
-  }, [user?.authenticated, user?.role, navigate]);
+  }, []);
 
   const fetchFields = async () => {
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ? 
-        import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
       
       const res = await fetch(`${backendURL}/fields/`, {
         method: "GET",
@@ -64,8 +64,7 @@ function Management() {
     });
     
     try {
-      const backendURL = (import.meta.env.MODE === 'development') ? 
-        import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
+      const backendURL = getBackendURL();
 
       const res = await fetch(`${backendURL}/fields/create/`, {
         method: "POST",

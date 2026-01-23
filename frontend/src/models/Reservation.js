@@ -21,6 +21,18 @@ export class Reservation {
     CANCELLED: 'Otkazano'
   };
 
+  static APPROVAL_STATUS = {
+    PENDING: 'PENDING',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED'
+  };
+
+  static APPROVAL_STATUS_HR = {
+    PENDING: 'Na čekanju',
+    APPROVED: 'Odobrena',
+    REJECTED: 'Odbijena'
+  };
+
   constructor(data = {}) {
     this.id = data.id;
     this.bookingId = data.bookingId;
@@ -38,6 +50,7 @@ export class Reservation {
     this.createdAt = data.createdAt;
     this.paymentMethod = data.paymentMethod;
     this.paymentStatus = data.paymentStatus;
+    this.approvalStatus = data.approvalStatus;
   }
 
   static fromAPI(apiData) {
@@ -57,7 +70,8 @@ export class Reservation {
       endTime: apiData.end_time || apiData.endTime,
       createdAt: apiData.created_at || apiData.createdAt,
       paymentMethod: apiData.payment_method || apiData.paymentMethod,
-      paymentStatus: apiData.payment_status || apiData.paymentStatus
+      paymentStatus: apiData.payment_status || apiData.paymentStatus,
+      approvalStatus: apiData.approval_status || apiData.approvalStatus
     });
   }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserContext from "../user-context.jsx";
 import { Review } from "../models/Review";
+import { getBackendURL } from '../utils/api';
 
 function UserReviews() {
   const { userId } = useParams();
@@ -12,8 +13,6 @@ function UserReviews() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const backendURL = (import.meta.env.MODE === 'development') ?  import.meta.env.VITE_API_BASE_URL_LOCAL : import.meta.env.VITE_API_BASE_URL_DEPLOYMENT;
-
   useEffect(() => {
     fetchUserReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -23,6 +22,7 @@ function UserReviews() {
     setLoading(true);
     setError(null);
     try {
+      const backendURL = getBackendURL();
       const res = await fetch(`${backendURL}/reviews/user/${userId}/`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
