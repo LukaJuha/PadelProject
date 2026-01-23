@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
-from .models import Player, Club, Admin, Field, Booking, Reservation, Review, Offer, PlayerOffer
+from .models import Player, Club, Admin, Field, Booking, Reservation, Review, Offer, PlayerOffer, Subscription
 
 User = get_user_model()
 
