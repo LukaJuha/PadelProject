@@ -26,6 +26,9 @@ CORS_ALLOWED_ORIGINS = [
     os.environ.get('FRONTEND_URL', 'https://padelprojectfrontend.onrender.com'),
 ]
 
+# Allow cookies/credentials if frontend uses them
+CORS_ALLOW_CREDENTIALS = True
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
