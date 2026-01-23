@@ -687,7 +687,7 @@ def create_field(request):
             return Response({'error': 'Field name is required'}, 
                            status=status.HTTP_400_BAD_REQUEST)
         
-        valid_floor_types = ['HARDWOOD', 'GRASS', 'TURF', 'ARTIFICIAL']
+        valid_floor_types = ['HARDWOOD', 'GRASS', 'ARTIFICIAL']
         if floor_type not in valid_floor_types:
             return Response({'error': f'Invalid floor type. Must be one of: {", ".join(valid_floor_types)}'}, 
                            status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,11 @@
 # PadelProject
 
+## Host aplikacije
+
+https://padelprojectfrontend.onrender.com
+
+Napomena: Render.com vjerojatno treba duže vrijeme da upali instancu servera pošto se neće često koristiti
+
 ## ServeIt - PadelTime
 
 Aplikacija za igrače padela koja omogućuje jednostavan pronalazak klubova, rezervaciju terena, automatsko plaćanje i više.

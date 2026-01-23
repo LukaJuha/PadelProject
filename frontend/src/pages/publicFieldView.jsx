@@ -426,7 +426,21 @@ function PublicFieldView() {
         <div>
           <h1>{field.name}</h1>
           <p style={styles.subtitle}>
+<<<<<<< HEAD
             {Field.FLOOR_TYPES_HR[field.floorType]} • {Field.SIZES_HR[field.size]} • {Field.LOCATIONS_HR[field.location]}
+=======
+          {
+            (field.floorType== "HARDWOOD" || field.floor_type == "HARDWOOD") ? 'Parket' :
+            (field.floorType== "GRASS" || field.floor_type == "GRASS") ? 'Trava' :
+            (field.floorType== "ARTIFICIAL" || field.floor_type == "ARTIFICIAL") ? 'Umjetna trava' : ''
+            }  • {
+              field.size== "SINGLE" ? 'Single' :
+              field.size== "DOUBLE"  ? 'Double' : ''
+              } • {
+                field.location== "OUTSIDE" ? 'Vani' :
+                field.location== "INSIDE"  ? 'Unutra' : ''
+                }
+>>>>>>> main
           </p>
         </div>
         <button 
