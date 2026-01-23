@@ -12,9 +12,6 @@ backend-venv/
 staticfiles/
 media/
 
-# Django migrations
-api/migrations/*
-
 # Node / React
 node_modules/
 dist/

@@ -10,6 +10,7 @@ DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -18,11 +19,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-	'corsheaders.middleware.CorsMiddleware',
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://padelprojectfrontend.onrender.com',
+    os.environ.get('FRONTEND_URL', 'https://padelprojectfrontend.onrender.com'),
 ]
 
 STORAGES = {
@@ -40,3 +41,9 @@ DATABASES = {
         conn_max_age=600
     )
 }
+
+# Celery Configuration for Render
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
